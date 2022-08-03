@@ -18,10 +18,12 @@ namespace ViveSR
         public List<GameObject> copiedHandWraps;
         public GameObject gazeTargetObject;
         public GameObject headOrigin;
+        public GameObject tracker;
         public Material enabledMaterial;
         public Material disabledMaterial;
         private int maxRaycastDistance = 100;
         private int activeHandIndex = 0; // 0: original, 1~: copied
+        private Vector3 activeHandRelativePos = Vector3.zero;
 
         // Start is called before the first frame update
         void Start()
@@ -49,32 +51,55 @@ namespace ViveSR
             // gazeTargetObject.SetActive(true);
             // gazeTargetObject.transform.position = hit.point;
             var newIndex = GetNewHandIndex(hit);
-            if (newIndex == activeHandIndex) return;
 
-            // switch hand operation
-            if (newIndex == 0)
+            if (newIndex != activeHandIndex)
             {
-              SetWrapEnabled(copiedHandWraps[activeHandIndex - 1], false);
-              SetWrapEnabled(originalHandWrap, true);
-            }
-            else
-            {
-              if (activeHandIndex == 0)
+              // switch hand operation
+              if (newIndex == 0)
               {
-                SetWrapEnabled(originalHandWrap, false);
+                SetWrapEnabled(copiedHandWraps[activeHandIndex - 1], false);
+                SetWrapEnabled(originalHandWrap, true);
               }
               else
               {
-                SetWrapEnabled(copiedHandWraps[activeHandIndex - 1], false);
+                if (activeHandIndex == 0)
+                {
+                  SetWrapEnabled(originalHandWrap, false);
+                }
+                else
+                {
+                  SetWrapEnabled(copiedHandWraps[activeHandIndex - 1], false);
+                }
+                SetWrapEnabled(copiedHandWraps[newIndex - 1], true);
               }
-              SetWrapEnabled(copiedHandWraps[newIndex - 1], true);
-            }
+              activeHandIndex = newIndex;
 
-            activeHandIndex = newIndex;
+              // set offset pos
+              if (activeHandIndex == 0)
+              {
+                activeHandRelativePos = Vector3.zero;
+              }
+              else
+              {
+                activeHandRelativePos = copiedHandWraps[activeHandIndex - 1].transform.position - tracker.transform.position;
+              }
+            }
+          }
+          // else
+          // {
+          //   gazeTargetObject.SetActive(false);
+          // }
+
+          // update hand pos
+          if (activeHandIndex == 0)
+          {
+            originalHandWrap.transform.position = tracker.transform.position;
+            originalHandWrap.transform.rotation = tracker.transform.rotation;
           }
           else
           {
-            gazeTargetObject.SetActive(false);
+            copiedHandWraps[activeHandIndex - 1].transform.position = tracker.transform.position + activeHandRelativePos;
+            copiedHandWraps[activeHandIndex - 1].transform.rotation = tracker.transform.rotation;
           }
         }
 
@@ -83,6 +108,7 @@ namespace ViveSR
           GetHandAnimatorFromWrap(wrap).isEnabled = enabled;
           var newMaterial = enabled ? enabledMaterial : disabledMaterial;
           GetRendererFromWrap(wrap).materials = new Material[2] { newMaterial, newMaterial };
+
         }
 
         private SkinnedMeshRenderer GetRendererFromWrap(GameObject wrap)
