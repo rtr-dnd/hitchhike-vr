@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,21 +13,27 @@ namespace ViveSR
     namespace Eye
     {
 
-      public class HitchhikeController : MonoBehaviour
+      public class HitchhikeControllerV2 : MonoBehaviour
       {
         public GameObject originalHandWrap;
-        public List<GameObject> copiedHandWraps;
+        public GameObject originalHandArea;
+        private List<GameObject> copiedHandWraps;
+        public List<GameObject> copiedHandAreas;
         public GameObject headOrigin;
         public GameObject tracker;
         public Material enabledMaterial;
         public Material disabledMaterial;
         private int maxRaycastDistance = 100;
         private int activeHandIndex = 0; // 0: original, 1~: copied
-        private Vector3 activeHandRelativePos = Vector3.zero;
 
         // Start is called before the first frame update
         void Start()
         {
+          copiedHandWraps = new List<GameObject>();
+          foreach (var item in copiedHandAreas)
+          {
+            copiedHandWraps.Add(GameObject.Instantiate(originalHandWrap, item.transform.position, item.transform.rotation));
+          }
           foreach (var item in copiedHandWraps)
           {
             SetWrapEnabled(item, false);
@@ -72,14 +79,14 @@ namespace ViveSR
               activeHandIndex = newIndex;
 
               // set offset pos
-              if (activeHandIndex == 0)
-              {
-                activeHandRelativePos = Vector3.zero;
-              }
-              else
-              {
-                activeHandRelativePos = copiedHandWraps[activeHandIndex - 1].transform.position - tracker.transform.position;
-              }
+              // if (activeHandIndex == 0)
+              // {
+              //   activeHandRelativePos = Vector3.zero;
+              // }
+              // else
+              // {
+              //   activeHandRelativePos = copiedHandWraps[activeHandIndex - 1].transform.position - tracker.transform.position;
+              // }
             }
           }
 
@@ -91,8 +98,36 @@ namespace ViveSR
           }
           else
           {
-            copiedHandWraps[activeHandIndex - 1].transform.position = tracker.transform.position + activeHandRelativePos;
-            copiedHandWraps[activeHandIndex - 1].transform.rotation = tracker.transform.rotation;
+            // copiedHandWraps[activeHandIndex - 1].transform.position = tracker.transform.position + activeHandRelativePos;
+            // copiedHandWraps[activeHandIndex - 1].transform.rotation = tracker.transform.rotation;
+            var originalSpaceOrigin = originalHandArea.transform;
+            var copiedSpaceOrigin = copiedHandAreas[activeHandIndex - 1].transform;
+
+            var originalToCopiedRot = Quaternion.Inverse(copiedSpaceOrigin.rotation) * originalSpaceOrigin.rotation;
+            var originalToCopiedScale = new Vector3(
+              copiedSpaceOrigin.lossyScale.x / originalSpaceOrigin.lossyScale.x,
+              copiedSpaceOrigin.lossyScale.y / originalSpaceOrigin.lossyScale.y,
+              copiedSpaceOrigin.lossyScale.z / originalSpaceOrigin.lossyScale.z
+            );
+
+            var oMt = Matrix4x4.TRS(
+              tracker.transform.position,
+              tracker.transform.rotation,
+              new Vector3(1, 1, 1)
+            );
+
+            var resMat =
+            Matrix4x4.Translate(copiedSpaceOrigin.position - originalSpaceOrigin.position) // orignal to copied translation
+            * Matrix4x4.TRS(
+                originalSpaceOrigin.position,
+                Quaternion.Inverse(originalToCopiedRot),
+                originalToCopiedScale
+            ) // translation back to original space and rotation & scale around original space
+            * Matrix4x4.Translate(-originalSpaceOrigin.position) // offset translation for next step
+            * oMt; // tracker
+
+            copiedHandWraps[activeHandIndex - 1].transform.position = resMat.GetColumn(3);
+            copiedHandWraps[activeHandIndex - 1].transform.rotation = resMat.rotation;
           }
         }
 
