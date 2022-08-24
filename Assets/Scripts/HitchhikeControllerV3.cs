@@ -84,7 +84,7 @@ namespace ViveSR
           {
             if (i == currentGazeIndex && currentGazeIndex != activeHandIndex)
             {
-              handSwitchProgress[i] += 2;
+              handSwitchProgress[i] += 3;
               if (i == 0)
               {
                 SetProgressOfWrap(originalHandWrap, (float)handSwitchProgress[i] / handSwitchProgressThreshold);
