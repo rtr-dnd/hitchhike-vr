@@ -50,9 +50,9 @@ namespace ViveSR
             return;
           }
 
+          // gaze
           var gazeRay = GetGazeRay();
           var focusDistance = GetFocusDistance();
-
           int layerMask = LayerMask.GetMask("Hitchhike");
           RaycastHit closestHit = new RaycastHit();
           float closestDistance = float.PositiveInfinity;

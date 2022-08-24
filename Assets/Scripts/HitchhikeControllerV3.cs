@@ -2,6 +2,7 @@ using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using Manus.Hand;
 using RootScript;
 
@@ -26,19 +27,26 @@ namespace ViveSR
         private int maxRaycastDistance = 100;
         private float raycastDistanceAcceptThreshold = 0.1f;
         private int activeHandIndex = 0; // 0: original, 1~: copied
-        private int switchHandThreshold = 60;
+        private List<int> handSwitchProgress;
+        private int handSwitchProgressThreshold = 70;
 
         // Start is called before the first frame update
         void Start()
         {
           copiedHandWraps = new List<GameObject>();
+          handSwitchProgress = new List<int>();
+          handSwitchProgress.Add(0);
           foreach (var item in copiedHandAreas)
           {
-            copiedHandWraps.Add(GameObject.Instantiate(originalHandWrap, item.transform.position, item.transform.rotation));
+            var initialHandPosition = item.GetChildWithName("InitialHandPosition");
+            copiedHandWraps.Add(GameObject.Instantiate(originalHandWrap, initialHandPosition.transform.position, initialHandPosition.transform.rotation));
+            handSwitchProgress.Add(0);
           }
+          SetProgressOfWrap(originalHandWrap, 0);
           foreach (var item in copiedHandWraps)
           {
             SetWrapEnabled(item, false);
+            SetProgressOfWrap(item, 0);
           }
         }
 
@@ -51,9 +59,9 @@ namespace ViveSR
             return;
           }
 
-          // gaze
           var gazeRay = GetGazeRay();
           var focusDistance = GetFocusDistance();
+
           int layerMask = LayerMask.GetMask("Hitchhike");
           RaycastHit closestHit = new RaycastHit();
           float closestDistance = float.PositiveInfinity;
@@ -67,32 +75,65 @@ namespace ViveSR
               closestDistance = hit.distance;
             }
           }
-          if (closestDistance < float.PositiveInfinity)
-          {
-            var newIndex = GetNewHandIndex(closestHit);
 
-            if (newIndex != activeHandIndex)
+          var currentGazeIndex = -1;
+          if (closestDistance < float.PositiveInfinity) currentGazeIndex = GetNewHandIndex(closestHit);
+
+          // update hand status
+          for (var i = 0; i < handSwitchProgress.Count; i++)
+          {
+            if (i == currentGazeIndex && currentGazeIndex != activeHandIndex)
             {
-              // switch hand operation
-              if (newIndex == 0)
+              handSwitchProgress[i] += 2;
+              if (i == 0)
               {
-                SetWrapEnabled(copiedHandWraps[activeHandIndex - 1], false);
-                SetWrapEnabled(originalHandWrap, true);
+                SetProgressOfWrap(originalHandWrap, (float)handSwitchProgress[i] / handSwitchProgressThreshold);
               }
               else
               {
-                if (activeHandIndex == 0)
-                {
-                  SetWrapEnabled(originalHandWrap, false);
-                }
-                else
-                {
-                  SetWrapEnabled(copiedHandWraps[activeHandIndex - 1], false);
-                }
-                SetWrapEnabled(copiedHandWraps[newIndex - 1], true);
+                SetProgressOfWrap(copiedHandWraps[i - 1], (float)handSwitchProgress[i] / handSwitchProgressThreshold);
               }
-              activeHandIndex = newIndex;
             }
+            else if (handSwitchProgress[i] > 0)
+            {
+              handSwitchProgress[i] -= 1;
+              if (i == 0)
+              {
+                SetProgressOfWrap(originalHandWrap, (float)handSwitchProgress[i] / handSwitchProgressThreshold);
+              }
+              else
+              {
+                SetProgressOfWrap(copiedHandWraps[i - 1], (float)handSwitchProgress[i] / handSwitchProgressThreshold);
+              }
+            }
+          }
+          // Debug.Log(string.Join(", ", handSwitchProgress.Select(i => i.ToString())));
+
+          // switch hand operation
+          for (var i = 0; i < handSwitchProgress.Count; i++)
+          {
+            if (handSwitchProgress[i] < handSwitchProgressThreshold) continue;
+            if (i == activeHandIndex) continue;
+
+            handSwitchProgress[i] = 0;
+            if (i == 0)
+            {
+              SetWrapEnabled(copiedHandWraps[activeHandIndex - 1], false);
+              SetWrapEnabled(originalHandWrap, true);
+            }
+            else
+            {
+              if (activeHandIndex == 0)
+              {
+                SetWrapEnabled(originalHandWrap, false);
+              }
+              else
+              {
+                SetWrapEnabled(copiedHandWraps[activeHandIndex - 1], false);
+              }
+              SetWrapEnabled(copiedHandWraps[i - 1], true);
+            }
+            activeHandIndex = i;
           }
 
           // update hand pos
@@ -149,6 +190,25 @@ namespace ViveSR
         private HandAnimator GetHandAnimatorFromWrap(GameObject wrap)
         {
           return wrap.GetChildWithName("ManusHand_R").GetChildWithName("SK_Hand").GetComponent<HandAnimator>();
+        }
+
+        private void SetWrapCanvasEnabled(GameObject wrap, bool enabled)
+        {
+          var canvas = wrap.GetChildWithName("Canvas");
+          canvas.SetActive(enabled);
+        }
+        private void SetProgressOfWrap(GameObject wrap, float progress)
+        {
+          if (progress <= 0.0f || progress >= 1.0f)
+          {
+            SetWrapCanvasEnabled(wrap, false);
+          }
+          else
+          {
+            SetWrapCanvasEnabled(wrap, true);
+          }
+          var image = wrap.GetChildWithName("Canvas").GetChildWithName("ProgressIndicator").GetChildWithName("Fill").GetComponent<Image>();
+          image.fillAmount = progress;
         }
 
         private int GetNewHandIndex(RaycastHit hit)
