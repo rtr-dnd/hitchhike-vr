@@ -24,6 +24,7 @@ namespace ViveSR
         public Material enabledMaterial;
         public Material disabledMaterial;
         private int maxRaycastDistance = 100;
+        private float raycastDistanceAcceptThreshold = 0.1f;
         private int activeHandIndex = 0; // 0: original, 1~: copied
 
         // Start is called before the first frame update
@@ -50,11 +51,24 @@ namespace ViveSR
           }
 
           var gazeRay = GetGazeRay();
+          var focusDistance = GetFocusDistance();
 
           int layerMask = LayerMask.GetMask("Hitchhike");
-          if (Physics.Raycast(gazeRay, out var hit, maxRaycastDistance, layerMask))
+          RaycastHit closestHit = new RaycastHit();
+          float closestDistance = float.PositiveInfinity;
+          foreach (var hit in Physics.RaycastAll(gazeRay, Mathf.Min(maxRaycastDistance, focusDistance), layerMask))
           {
-            var newIndex = GetNewHandIndex(hit);
+            // finding a hit that's closest to focus point
+            if (hit.distance - focusDistance > raycastDistanceAcceptThreshold) continue;
+            if (Mathf.Abs(hit.distance - focusDistance) < Mathf.Abs(closestDistance - focusDistance))
+            {
+              closestHit = hit;
+              closestDistance = hit.distance;
+            }
+          }
+          if (closestDistance < float.PositiveInfinity)
+          {
+            var newIndex = GetNewHandIndex(closestHit);
 
             if (newIndex != activeHandIndex)
             {
@@ -77,16 +91,6 @@ namespace ViveSR
                 SetWrapEnabled(copiedHandWraps[newIndex - 1], true);
               }
               activeHandIndex = newIndex;
-
-              // set offset pos
-              // if (activeHandIndex == 0)
-              // {
-              //   activeHandRelativePos = Vector3.zero;
-              // }
-              // else
-              // {
-              //   activeHandRelativePos = copiedHandWraps[activeHandIndex - 1].transform.position - tracker.transform.position;
-              // }
             }
           }
 
@@ -98,8 +102,6 @@ namespace ViveSR
           }
           else
           {
-            // copiedHandWraps[activeHandIndex - 1].transform.position = tracker.transform.position + activeHandRelativePos;
-            // copiedHandWraps[activeHandIndex - 1].transform.rotation = tracker.transform.rotation;
             var originalSpaceOrigin = originalHandArea.transform;
             var copiedSpaceOrigin = copiedHandAreas[activeHandIndex - 1].transform;
 
@@ -171,6 +173,12 @@ namespace ViveSR
         {
           var eyeData = SRanipal_Eye_v2.GetVerboseData(out var verboseData);
           return verboseData.combined.eye_data;
+        }
+
+        private float GetFocusDistance()
+        {
+          var wasSuccess = SRanipal_Eye_v2.Focus(GazeIndex.COMBINE, out var combineRay, out var combineFocus);
+          return combineFocus.distance;
         }
       }
 
