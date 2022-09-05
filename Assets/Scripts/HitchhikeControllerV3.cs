@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using Manus.Hand;
 using RootScript;
+using Manus;
+using Manus.Interaction;
 
 namespace ViveSR
 {
@@ -118,20 +120,18 @@ namespace ViveSR
             handSwitchProgress[i] = 0;
             if (i == 0)
             {
-              SetWrapEnabled(copiedHandWraps[activeHandIndex - 1], false);
-              SetWrapEnabled(originalHandWrap, true);
+              SwitchWrap(copiedHandWraps[activeHandIndex - 1], originalHandWrap);
             }
             else
             {
               if (activeHandIndex == 0)
               {
-                SetWrapEnabled(originalHandWrap, false);
+                SwitchWrap(originalHandWrap, copiedHandWraps[i - 1]);
               }
               else
               {
-                SetWrapEnabled(copiedHandWraps[activeHandIndex - 1], false);
+                SwitchWrap(copiedHandWraps[activeHandIndex - 1], copiedHandWraps[i - 1]);
               }
-              SetWrapEnabled(copiedHandWraps[i - 1], true);
             }
             activeHandIndex = i;
           }
@@ -175,17 +175,45 @@ namespace ViveSR
           }
         }
 
+        private void SwitchWrap(GameObject before, GameObject after)
+        {
+          var interactionBefore = GetHandGrabInteractionFromWrap(before);
+          var interactionAfter = GetHandGrabInteractionFromWrap(after);
+          var grabbedObject = interactionBefore.grabbedObject;
+          if (grabbedObject != null)
+          {
+            var oldInfo = grabbedObject.hands[0];
+            var grabbableObject = grabbedObject.gameObject.GetComponent<GrabbableObject>();
+
+            interactionAfter.GrabGrabbable(grabbableObject);
+            interactionBefore.Release();
+
+            // overwrite grabbing info
+            interactionAfter.grabbedObject.hands[0].distance = oldInfo.distance;
+            interactionAfter.grabbedObject.hands[0].nearestColliderPoint = oldInfo.nearestColliderPoint;
+            interactionAfter.grabbedObject.hands[0].handToObject = oldInfo.handToObject;
+            interactionAfter.grabbedObject.hands[0].objectToHand = oldInfo.objectToHand;
+            interactionAfter.grabbedObject.hands[0].objectInteractorForward = oldInfo.objectInteractorForward;
+            interactionAfter.grabbedObject.hands[0].handToObjectRotation = oldInfo.handToObjectRotation;
+          }
+          SetWrapEnabled(before, false);
+          SetWrapEnabled(after, true);
+        }
+
         private void SetWrapEnabled(GameObject wrap, bool enabled)
         {
           GetHandAnimatorFromWrap(wrap).isEnabled = enabled;
           var newMaterial = enabled ? enabledMaterial : disabledMaterial;
           GetRendererFromWrap(wrap).materials = new Material[2] { newMaterial, newMaterial };
-
         }
 
         private SkinnedMeshRenderer GetRendererFromWrap(GameObject wrap)
         {
           return wrap.GetChildWithName("ManusHand_R").GetChildWithName("SK_Hand").GetChildWithName("mesh_hand_r").GetComponent<SkinnedMeshRenderer>();
+        }
+        private HandGrabInteraction GetHandGrabInteractionFromWrap(GameObject wrap)
+        {
+          return wrap.GetChildWithName("ManusHand_R").GetChildWithName("Interaction").GetComponent<HandGrabInteraction>();
         }
         private HandAnimator GetHandAnimatorFromWrap(GameObject wrap)
         {
