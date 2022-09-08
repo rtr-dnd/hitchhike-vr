@@ -26,12 +26,14 @@ public class ScaledHOMERController : MonoBehaviour
   // sclaed homer stuff
   Vector3 lastHandPos;
   Vector3 lastVirtualHandPos;
-  float SC = 0.2f;
-  float v_min = 0.05f;
+  Vector3 lastSPHand;
+  float SC = 1f;
+  float v_min = 0.02f;
   Vector3 torsoCenter;
   float D_hand; // initial distance between torso and hand
   float D_object; // initial distance between torso and object
   Vector3 V_offset; // offset vector
+  Vector3 initialVirtualArmPosition; // used to rotate V_offset
 
   int maxRaycastDistance = 100;
   Vector3? filteredForward = null;
@@ -39,10 +41,19 @@ public class ScaledHOMERController : MonoBehaviour
   HandGrabInteraction interaction;
   float ratio = 0.3f;
 
+  GameObject tmp;
+  GameObject tmp2;
+  GameObject tmp3;
+  GameObject tmp4;
+
   void Start()
   {
     lineRenderer = handWrap.GetComponent<LineRenderer>();
     interaction = GetHandGrabInteractionFromWrap(handWrap);
+    tmp = new GameObject("tmp");
+    tmp2 = new GameObject("tmp2");
+    tmp3 = new GameObject("tmp3");
+    tmp4 = new GameObject("tmp4");
   }
 
   void Update()
@@ -75,6 +86,7 @@ public class ScaledHOMERController : MonoBehaviour
         D_hand = Vector3.Distance(tracker.transform.position, torsoCenter);
         D_object = Vector3.Distance(selectedObject.transform.position, torsoCenter);
         V_offset = selectedObject.transform.position - D_object * (tracker.transform.position - torsoCenter) / D_hand;
+        initialVirtualArmPosition = tracker.transform.position;
 
         OnHoverEnd(selectedObject);
         OnSelect(selectedObject);
@@ -91,7 +103,7 @@ public class ScaledHOMERController : MonoBehaviour
       var V_hand_move = tracker.transform.position - lastHandPos;
       var D_hand_in_scaled = V_hand_move.magnitude;
       var velocity = D_hand_in_scaled / Time.deltaTime;
-      Debug.Log(velocity); // todo: adjust SC and v_min
+      var SP_hand = tracker.transform.position;
       if (velocity < v_min)
       {
         handWrap.transform.position = lastVirtualHandPos;
@@ -100,17 +112,27 @@ public class ScaledHOMERController : MonoBehaviour
       else
       {
         var SD_hand = Mathf.Min(velocity / SC, 1.2f) * D_hand_in_scaled;
-        var SP_hand = SD_hand * (V_hand_move / V_hand_move.magnitude) + tracker.transform.position;
-        var D_virthand = (SP_hand - torsoCenter).magnitude * D_object / D_hand;
+        SP_hand = SD_hand * (V_hand_move / V_hand_move.magnitude) + lastSPHand;
+        var D_virthand = Vector3.Distance(SP_hand, torsoCenter) * D_object / D_hand;
         var D_currhand = Vector3.Distance(tracker.transform.position, torsoCenter);
-
-        handWrap.transform.position = D_virthand * (tracker.transform.position - torsoCenter) / D_currhand + V_offset;
+        // rotate V_offset
+        tmp.transform.position = torsoCenter;
+        tmp.transform.LookAt(initialVirtualArmPosition);
+        tmp2.transform.position = initialVirtualArmPosition;
+        tmp3.transform.position = initialVirtualArmPosition + V_offset;
+        tmp2.transform.SetParent(tmp.transform);
+        tmp3.transform.SetParent(tmp2.transform);
+        tmp.transform.LookAt(tracker.transform.position);
+        var new_V_offset = tmp3.transform.position - tmp2.transform.position;
+        handWrap.transform.position = D_virthand * (tracker.transform.position - torsoCenter) / D_currhand + new_V_offset + torsoCenter;
+        // handWrap.transform.position = D_virthand * (tracker.transform.position - torsoCenter) / D_currhand;
         handWrap.transform.rotation = tracker.transform.rotation;
       }
 
       // scaled homer update val
       lastHandPos = tracker.transform.position;
       lastVirtualHandPos = handWrap.transform.position;
+      lastSPHand = SP_hand;
 
       if (hoveredObject != null) // grab action
       {
