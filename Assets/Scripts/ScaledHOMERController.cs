@@ -9,7 +9,6 @@ public class ScaledHOMERController : MonoBehaviour
 {
   public GameObject handWrap;
   public GameObject headOrigin;
-  Vector3 fixedHeadOrigin;
   public GameObject tracker;
   public GameObject rayDirection;
   LineRenderer lineRenderer;
@@ -17,7 +16,22 @@ public class ScaledHOMERController : MonoBehaviour
   bool isGrabbing;
   GameObject hoveredObject;
   GameObject selectedObject;
-  Vector3 handToSelectedOffset;
+
+  // // homer stuff
+  // Vector3 torsoCenter;
+  // float D_hand; // initial distance between torso and hand
+  // float D_object; // initial distance between torso and object
+  // Vector3 V_offset; // offset vector
+
+  // sclaed homer stuff
+  Vector3 lastHandPos;
+  Vector3 lastVirtualHandPos;
+  float SC = 0.2f;
+  float v_min = 0.05f;
+  Vector3 torsoCenter;
+  float D_hand; // initial distance between torso and hand
+  float D_object; // initial distance between torso and object
+  Vector3 V_offset; // offset vector
 
   int maxRaycastDistance = 100;
   Vector3? filteredForward = null;
@@ -29,7 +43,6 @@ public class ScaledHOMERController : MonoBehaviour
   {
     lineRenderer = handWrap.GetComponent<LineRenderer>();
     interaction = GetHandGrabInteractionFromWrap(handWrap);
-    fixedHeadOrigin = headOrigin.transform.position;
   }
 
   void Update()
@@ -40,20 +53,70 @@ public class ScaledHOMERController : MonoBehaviour
       if (hoveredObject != null) // object color change etc.
       {
         selectedObject = hoveredObject;
-        handToSelectedOffset = selectedObject.transform.position - tracker.transform.position;
+
+        // homer initialize
+        // torsoCenter = new Vector3(
+        //   headOrigin.transform.position.x,
+        //   tracker.transform.position.y,
+        //   headOrigin.transform.position.z
+        // );
+        // D_hand = Vector3.Distance(tracker.transform.position, torsoCenter);
+        // D_object = Vector3.Distance(selectedObject.transform.position, torsoCenter);
+        // V_offset = selectedObject.transform.position - D_object * (tracker.transform.position - torsoCenter) / D_hand;
+
+        // scaled homer initialize
+        lastHandPos = tracker.transform.position;
+        lastVirtualHandPos = selectedObject.transform.position;
+        torsoCenter = new Vector3(
+                  headOrigin.transform.position.x,
+                  tracker.transform.position.y,
+                  headOrigin.transform.position.z
+                );
+        D_hand = Vector3.Distance(tracker.transform.position, torsoCenter);
+        D_object = Vector3.Distance(selectedObject.transform.position, torsoCenter);
+        V_offset = selectedObject.transform.position - D_object * (tracker.transform.position - torsoCenter) / D_hand;
+
         OnHoverEnd(selectedObject);
         OnSelect(selectedObject);
         lineRenderer.enabled = false;
       }
 
-      // change hand position
-      handWrap.transform.position = tracker.transform.position + handToSelectedOffset;
-      handWrap.transform.rotation = tracker.transform.rotation;
+      // change hand position by homer
+      // var D_currhand = Vector3.Distance(tracker.transform.position, torsoCenter);
+      // var D_virthand = D_currhand * D_object / D_hand;
+      // handWrap.transform.position = D_virthand * (tracker.transform.position - torsoCenter) / D_currhand + V_offset;
+      // handWrap.transform.rotation = tracker.transform.rotation;
+
+      // change hand position by scaled homer
+      var V_hand_move = tracker.transform.position - lastHandPos;
+      var D_hand_in_scaled = V_hand_move.magnitude;
+      var velocity = D_hand_in_scaled / Time.deltaTime;
+      Debug.Log(velocity); // todo: adjust SC and v_min
+      if (velocity < v_min)
+      {
+        handWrap.transform.position = lastVirtualHandPos;
+        handWrap.transform.rotation = tracker.transform.rotation;
+      }
+      else
+      {
+        var SD_hand = Mathf.Min(velocity / SC, 1.2f) * D_hand_in_scaled;
+        var SP_hand = SD_hand * (V_hand_move / V_hand_move.magnitude) + tracker.transform.position;
+        var D_virthand = (SP_hand - torsoCenter).magnitude * D_object / D_hand;
+        var D_currhand = Vector3.Distance(tracker.transform.position, torsoCenter);
+
+        handWrap.transform.position = D_virthand * (tracker.transform.position - torsoCenter) / D_currhand + V_offset;
+        handWrap.transform.rotation = tracker.transform.rotation;
+      }
+
+      // scaled homer update val
+      lastHandPos = tracker.transform.position;
+      lastVirtualHandPos = handWrap.transform.position;
 
       if (hoveredObject != null) // grab action
       {
         var grabbable = selectedObject.GetComponent<GrabbableObject>();
-        interaction.GrabGrabbable(grabbable);
+        if (grabbable == null) grabbable = selectedObject.GetComponentInParent<GrabbableObject>();
+        if (grabbable != null) interaction.GrabGrabbable(grabbable);
         hoveredObject = null;
       }
     }
@@ -63,7 +126,7 @@ public class ScaledHOMERController : MonoBehaviour
       {
         OnSelectEnd(selectedObject);
         selectedObject = null;
-        handToSelectedOffset = Vector3.zero;
+        // handToSelectedOffset = Vector3.zero;
         interaction.Release();
         lineRenderer.enabled = true;
       }
