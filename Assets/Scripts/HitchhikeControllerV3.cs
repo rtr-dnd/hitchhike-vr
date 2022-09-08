@@ -30,7 +30,7 @@ namespace ViveSR
         private float raycastDistanceAcceptThreshold = 0.1f;
         private int activeHandIndex = 0; // 0: original, 1~: copied
         private List<int> handSwitchProgress;
-        private int handSwitchProgressThreshold = 70;
+        private int handSwitchProgressThreshold = 100;
 
         // Start is called before the first frame update
         void Start()
@@ -249,13 +249,27 @@ namespace ViveSR
           return i + 1; // original: FindIndex returns -1 so index becomes 0
         }
 
+        Vector3? filteredDirection = null;
+        Vector3? filteredPosition = null;
+        float? filteredDistance = null;
+        float ratio = 0.3f;
         private Ray GetGazeRay()
         {
           var eyeData = GetCombinedSingleEyeData();
           var gazeDirection = eyeData.gaze_direction_normalized;
           gazeDirection.x *= -1; // right hand coor to left hand coor
 
-          return new Ray(headOrigin.transform.position, headOrigin.transform.rotation * gazeDirection);
+          if (!filteredDirection.HasValue)
+          {
+            filteredDirection = headOrigin.transform.rotation * gazeDirection;
+            filteredPosition = headOrigin.transform.position;
+          }
+          else
+          {
+            filteredDirection = filteredDirection.Value * (1 - ratio) + headOrigin.transform.rotation * gazeDirection * ratio;
+            filteredPosition = filteredPosition.Value * (1 - ratio) + headOrigin.transform.position * ratio;
+          }
+          return new Ray(filteredPosition.Value, filteredDirection.Value);
         }
 
         private SingleEyeData GetCombinedSingleEyeData()
@@ -267,7 +281,15 @@ namespace ViveSR
         private float GetFocusDistance()
         {
           var wasSuccess = SRanipal_Eye_v2.Focus(GazeIndex.COMBINE, out var combineRay, out var combineFocus);
-          return combineFocus.distance;
+          if (!filteredDistance.HasValue)
+          {
+            filteredDistance = combineFocus.distance;
+          }
+          else
+          {
+            filteredDistance = filteredDistance.Value * (1 - ratio) + combineFocus.distance * ratio;
+          }
+          return filteredDistance.Value;
         }
       }
 
