@@ -87,30 +87,6 @@
             {
                "output" : "/actions/default/in/pose",
                "path" : "/user/hand/right/pose/raw"
-            },
-            {
-               "output" : "none",
-               "path" : "/user/hand/left/pose/back"
-            },
-            {
-               "output" : "none",
-               "path" : "/user/hand/right/pose/back"
-            },
-            {
-               "output" : "none",
-               "path" : "/user/hand/left/pose/front"
-            },
-            {
-               "output" : "none",
-               "path" : "/user/hand/right/pose/front"
-            },
-            {
-               "output" : "none",
-               "path" : "/user/hand/left/pose/front_rolled"
-            },
-            {
-               "output" : "none",
-               "path" : "/user/hand/right/pose/front_rolled"
             }
          ],
          "skeleton" : [

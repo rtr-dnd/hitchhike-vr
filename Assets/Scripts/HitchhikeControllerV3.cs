@@ -20,7 +20,8 @@ public class HitchhikeControllerV3 : MonoBehaviour
   public Material enabledMaterial;
   public Material disabledMaterial;
   private int maxRaycastDistance = 100;
-  private float raycastDistanceAcceptThreshold = 0.1f;
+  [SerializeField] float raycastDistanceAcceptThreshold = 0.2f;
+  private List<float> raycastDistanceAcceptThresholds;
   private int activeHandIndex = 0; // 0: original, 1~: copied
   private List<int> handSwitchProgress;
   private int handSwitchProgressThreshold = 100;
@@ -32,11 +33,21 @@ public class HitchhikeControllerV3 : MonoBehaviour
     copiedHandWraps = new List<GameObject>();
     handSwitchProgress = new List<int>();
     handSwitchProgress.Add(0);
+    raycastDistanceAcceptThresholds = new List<float>();
+    raycastDistanceAcceptThresholds.Add(raycastDistanceAcceptThreshold);
     foreach (var item in copiedHandAreas)
     {
       var initialHandPosition = item.GetChildWithName("InitialHandPosition");
       var tempHandWrap = GameObject.Instantiate(originalHandWrap, initialHandPosition.transform.position, initialHandPosition.transform.rotation);
-      if (scaleHandWithArea) tempHandWrap.transform.localScale = Vector3.one * (Mathf.Max(item.transform.localScale.x, Mathf.Max(item.transform.localScale.y, item.transform.localScale.z)));
+      if (scaleHandWithArea)
+      {
+        tempHandWrap.transform.localScale = Vector3.one * (Mathf.Max(item.transform.localScale.x, Mathf.Max(item.transform.localScale.y, item.transform.localScale.z)));
+        raycastDistanceAcceptThresholds.Add(raycastDistanceAcceptThreshold * Mathf.Max(item.transform.localScale.x, Mathf.Max(item.transform.localScale.y, item.transform.localScale.z)));
+      }
+      else
+      {
+        raycastDistanceAcceptThresholds.Add(raycastDistanceAcceptThreshold);
+      }
       copiedHandWraps.Add(tempHandWrap);
       handSwitchProgress.Add(0);
     }
@@ -65,8 +76,10 @@ public class HitchhikeControllerV3 : MonoBehaviour
     float closestDistance = float.PositiveInfinity;
     foreach (var hit in Physics.RaycastAll(gazeRay, Mathf.Min(maxRaycastDistance, focusDistance), layerMask))
     {
+      var i = GetWrapIndexFromHit(hit);
+
       // finding a hit that's closest to focus point
-      if (hit.distance - focusDistance > raycastDistanceAcceptThreshold) continue;
+      if (Mathf.Abs(hit.distance - focusDistance) > raycastDistanceAcceptThresholds[i]) continue;
       if (Mathf.Abs(hit.distance - focusDistance) < Mathf.Abs(closestDistance - focusDistance))
       {
         closestHit = hit;
@@ -75,7 +88,7 @@ public class HitchhikeControllerV3 : MonoBehaviour
     }
 
     var currentGazeIndex = -1;
-    if (closestDistance < float.PositiveInfinity) currentGazeIndex = GetNewHandIndex(closestHit);
+    if (closestDistance < float.PositiveInfinity) currentGazeIndex = GetWrapIndexFromHit(closestHit);
 
     // update hand status
     for (var i = 0; i < handSwitchProgress.Count; i++)
@@ -116,17 +129,17 @@ public class HitchhikeControllerV3 : MonoBehaviour
       handSwitchProgress[i] = 0;
       if (i == 0)
       {
-        SwitchWrap(copiedHandWraps[activeHandIndex - 1], originalHandWrap);
+        SwitchWrap(copiedHandWraps[activeHandIndex - 1], originalHandWrap, copiedHandAreas[activeHandIndex - 1]);
       }
       else
       {
         if (activeHandIndex == 0)
         {
-          SwitchWrap(originalHandWrap, copiedHandWraps[i - 1]);
+          SwitchWrap(originalHandWrap, copiedHandWraps[i - 1], originalHandArea);
         }
         else
         {
-          SwitchWrap(copiedHandWraps[activeHandIndex - 1], copiedHandWraps[i - 1]);
+          SwitchWrap(copiedHandWraps[activeHandIndex - 1], copiedHandWraps[i - 1], copiedHandAreas[activeHandIndex - 1]);
         }
       }
       activeHandIndex = i;
@@ -171,10 +184,10 @@ public class HitchhikeControllerV3 : MonoBehaviour
     }
   }
 
-  private void SwitchWrap(GameObject before, GameObject after)
+  private void SwitchWrap(GameObject beforeWrap, GameObject afterWrap, GameObject beforeArea)
   {
-    var interactionBefore = GetHandGrabInteractionFromWrap(before);
-    var interactionAfter = GetHandGrabInteractionFromWrap(after);
+    var interactionBefore = GetHandGrabInteractionFromWrap(beforeWrap);
+    var interactionAfter = GetHandGrabInteractionFromWrap(afterWrap);
     var grabbedObject = interactionBefore.grabbedObject;
     if (grabbedObject != null)
     {
@@ -192,8 +205,12 @@ public class HitchhikeControllerV3 : MonoBehaviour
       interactionAfter.grabbedObject.hands[0].objectInteractorForward = oldInfo.objectInteractorForward;
       interactionAfter.grabbedObject.hands[0].handToObjectRotation = oldInfo.handToObjectRotation;
     }
-    SetWrapEnabled(before, false);
-    SetWrapEnabled(after, true);
+    SetWrapEnabled(beforeWrap, false);
+    SetWrapEnabled(afterWrap, true);
+
+    var initialHandPosition = beforeArea.GetChildWithName("InitialHandPosition");
+    beforeWrap.transform.position = initialHandPosition.transform.position;
+    beforeWrap.transform.rotation = initialHandPosition.transform.rotation;
   }
 
   private void SetWrapEnabled(GameObject wrap, bool enabled)
@@ -202,7 +219,6 @@ public class HitchhikeControllerV3 : MonoBehaviour
     var newMaterial = enabled ? enabledMaterial : disabledMaterial;
     GetRendererFromWrap(wrap).materials = new Material[2] { newMaterial, newMaterial };
   }
-
   private SkinnedMeshRenderer GetRendererFromWrap(GameObject wrap)
   {
     return wrap.GetChildWithName("ManusHand_R").GetChildWithName("SK_Hand").GetChildWithName("mesh_hand_r").GetComponent<SkinnedMeshRenderer>();
@@ -235,7 +251,7 @@ public class HitchhikeControllerV3 : MonoBehaviour
     image.fillAmount = progress;
   }
 
-  private int GetNewHandIndex(RaycastHit hit)
+  private int GetWrapIndexFromHit(RaycastHit hit)
   {
     var target = hit.collider.gameObject;
 
