@@ -55,7 +55,9 @@ public class Experiment1Location : MonoBehaviour
       switch (i / 3)
       {
         case 0:
+          // tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
           tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
+
           // if (hitchhike.scaleHandWithArea)
           // {
           //   var tempArea = tempEnv.GetChildWithName("HandArea");
@@ -66,7 +68,9 @@ public class Experiment1Location : MonoBehaviour
           // }
           break;
         case 1:
-          tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance * 2);
+          // tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance * 2);
+          tempEnv.transform.position = new Vector3(0, env.transform.position.y + envBetweenDistance, envDistance + envBetweenDistance);
+
           // if (mode == ExperimentMode.Scale || mode == ExperimentMode.ScaleOnlyArea)
           // {
           //   var tempArea = tempEnv.GetChildWithName("HandArea");
@@ -77,7 +81,8 @@ public class Experiment1Location : MonoBehaviour
           // }
           break;
         case 2:
-          tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance * 3);
+          // tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance * 3);
+          tempEnv.transform.position = new Vector3(0, env.transform.position.y - envBetweenDistance, envDistance + envBetweenDistance);
           // if (mode == ExperimentMode.Scale || mode == ExperimentMode.ScaleOnlyArea)
           // {
           //   var tempArea = tempEnv.GetChildWithName("HandArea");
