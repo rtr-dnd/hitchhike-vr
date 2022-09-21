@@ -2,15 +2,16 @@ using System.Collections.Generic;
 using UnityEngine;
 using RootScript;
 
-public enum ExperimentMode
-{
-  Normal,
-  Scale,
-  ScaleOnlyArea
-}
 
-public class Experiment1 : MonoBehaviour
+public class Experiment1Distance : MonoBehaviour
 {
+
+  public enum ExperimentMode
+  {
+    Normal,
+    Scale,
+    ScaleOnlyArea
+  }
   [SerializeField] GameObject env;
   [SerializeField] GameObject origin;
   [SerializeField] float envDistance = 0.4f;
