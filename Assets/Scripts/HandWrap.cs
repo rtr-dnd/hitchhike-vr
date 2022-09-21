@@ -12,6 +12,12 @@ public class HandWrap : MonoBehaviour
   private bool isEnabled;
   public Material enabledMaterial;
   public Material disabledMaterial;
+  public float colliderScale = 1;
+
+  private void Start()
+  {
+    gameObject.GetChildWithName("Capsule").transform.localScale *= colliderScale;
+  }
 
   public bool GetEnabled() { return isEnabled; }
   public void SetEnabled(bool enabled)
@@ -43,6 +49,8 @@ public class HandWrap : MonoBehaviour
     }
     Image image = GetImage();
     image.fillAmount = progressNormalized;
+    CanvasGroup canvasGroup = GetCanvasGroup();
+    canvasGroup.alpha = (progressNormalized) * 0.5f;
   }
 
   public void SetHandPosRot(Vector3 position, Quaternion rotation)
@@ -82,6 +90,10 @@ public class HandWrap : MonoBehaviour
   private Image GetImage()
   {
     return GetCanvas().gameObject.GetChildWithName("ProgressIndicator").GetChildWithName("Fill").GetComponent<Image>();
+  }
+  private CanvasGroup GetCanvasGroup()
+  {
+    return GetCanvas().gameObject.GetComponent<CanvasGroup>();
   }
   private SkinnedMeshRenderer GetManusRenderer()
   {
