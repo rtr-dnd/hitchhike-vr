@@ -223,7 +223,9 @@ public class ScaledHOMERController : MonoBehaviour
       }
 
       lineRenderer.SetPosition(0, tracker.transform.position + filteredForward.Value * 0.2f);
-      if (Physics.Raycast(tracker.transform.position + filteredForward.Value * 0.2f, filteredForward.Value, out var hit, maxRaycastDistance))
+
+      int layerMask = 1 << LayerMask.NameToLayer("Object");
+      if (Physics.Raycast(tracker.transform.position + filteredForward.Value * 0.2f, filteredForward.Value, out var hit, maxRaycastDistance, layerMask))
       {
         if (hit.collider.gameObject.GetComponent<GrabbableObject>() != null || hit.collider.gameObject.GetComponentInParent<GrabbableObject>() != null)
         {

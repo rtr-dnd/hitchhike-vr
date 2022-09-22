@@ -6,6 +6,11 @@ TagManager:
   tags:
   - MoveWhenIntersecting
   - ManusInteractable
+  - Collider1
+  - Collider2
+  - Collider3
+  - Collider4
+  - Object
   layers:
   - Default
   - TransparentFX
@@ -15,7 +20,7 @@ TagManager:
   - UI
   - Hitchhike
   - FrontUI
-  - 
+  - Object
   - 
   - 
   - 

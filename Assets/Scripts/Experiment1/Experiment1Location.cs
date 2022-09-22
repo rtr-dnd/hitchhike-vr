@@ -48,11 +48,37 @@ public class Experiment1Location : MonoBehaviour
     }
 
     envs.Add(env);
-    env.transform.position = new Vector3(0, env.transform.position.y, envDistance);
-    for (var i = 0; i < 9; i++)
+    env.transform.position = new Vector3(0, env.transform.position.y, 0.1f);
+    for (int i = 0; i < 27; i++)
     {
       var tempEnv = GameObject.Instantiate(env, origin.transform.position, env.transform.rotation);
-      switch (i / 3)
+      // switch (i)
+      // { // tetrahedron like
+      //   case 0:
+      //     tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
+      //     break;
+      //   case 1:
+      //     tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
+      //     tempEnv.transform.RotateAround(new Vector3(0, env.transform.position.y, envDistance), Vector3.up, -45);
+      //     tempEnv.transform.rotation = env.transform.rotation;
+      //     break;
+      //   case 2:
+      //     tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
+      //     tempEnv.transform.RotateAround(new Vector3(0, env.transform.position.y, envDistance), Vector3.up, 45);
+      //     tempEnv.transform.rotation = env.transform.rotation;
+      //     break;
+      //   case 3:
+      //     tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
+      //     tempEnv.transform.RotateAround(new Vector3(0, env.transform.position.y, envDistance), Vector3.right, 45);
+      //     tempEnv.transform.rotation = env.transform.rotation;
+      //     break;
+      //   case 4:
+      //     tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
+      //     tempEnv.transform.RotateAround(new Vector3(0, env.transform.position.y, envDistance), Vector3.right, -45);
+      //     tempEnv.transform.rotation = env.transform.rotation;
+      //     break;
+      // }
+      switch ((i / 3) % 3)
       {
         case 0:
           // tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
@@ -92,17 +118,6 @@ public class Experiment1Location : MonoBehaviour
           //   );
           // }
           break;
-        case 3:
-          tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance * 8);
-          // if (mode == ExperimentMode.Scale || mode == ExperimentMode.ScaleOnlyArea)
-          // {
-          //   var tempArea = tempEnv.GetChildWithName("HandArea");
-          //   ScaleAround(tempArea,
-          //     new Vector3(tempArea.transform.position.x, tempArea.transform.position.y - tempArea.transform.lossyScale.y / 2, tempArea.transform.position.z),
-          //     tempArea.transform.localScale * 8f
-          //   );
-          // }
-          break;
         default:
           break;
       }
@@ -119,11 +134,23 @@ public class Experiment1Location : MonoBehaviour
         default:
           break;
       }
+      switch (i / 9)
+      {
+        case 0:
+          tempEnv.transform.position += new Vector3(0, 0, 0);
+          break;
+        case 1:
+          tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance);
+          break;
+        case 2:
+          tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance * 2);
+          break;
+      }
       envs.Add(tempEnv);
 
       if (mode == ExperimentMode.hitchhike && tempEnv.GetChildWithName("HandArea") != null) hitchhike.copiedHandAreas.Add(tempEnv.GetChildWithName("HandArea"));
     }
 
-
+    env.SetActive(false);
   }
 }

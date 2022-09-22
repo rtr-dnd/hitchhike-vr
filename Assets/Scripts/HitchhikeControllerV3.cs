@@ -135,11 +135,11 @@ public class HitchhikeControllerV3 : MonoBehaviour
       return;
     }
 
+    int layerMask = 1 << LayerMask.NameToLayer("Hitchhike");
     var gazeRay = GetGazeRay();
-    var focusDistance = GetFocusDistance() * 1.1f; // magic number
+    var focusDistance = GetFocusDistance(layerMask) * 1.1f; // magic number
     if (focusDepth != null) focusDepth.transform.position = headOrigin.transform.position + gazeRay.direction * focusDistance;
 
-    int layerMask = LayerMask.GetMask("Hitchhike");
     RaycastHit closestHit = new RaycastHit();
     float closestDistance = float.PositiveInfinity;
     foreach (var hit in Physics.RaycastAll(gazeRay, Mathf.Min(maxRaycastDistance, focusDistance), layerMask))
@@ -391,9 +391,9 @@ public class HitchhikeControllerV3 : MonoBehaviour
     return verboseData.combined.eye_data;
   }
 
-  private float GetFocusDistance()
+  private float GetFocusDistance(int layerMask)
   {
-    var wasSuccess = SRanipal_Eye_v2.Focus(GazeIndex.COMBINE, out var combineRay, out var combineFocus);
+    var wasSuccess = SRanipal_Eye_v2.Focus(GazeIndex.COMBINE, out var combineRay, out var combineFocus, 0, float.MaxValue, layerMask);
     if (!filteredDistance.HasValue)
     {
       filteredDistance = combineFocus.distance;
