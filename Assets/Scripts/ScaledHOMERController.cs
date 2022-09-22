@@ -192,6 +192,9 @@ public class ScaledHOMERController : MonoBehaviour
       if (hoveredObject != null) // grab action
       {
         handWrap.transform.position = selectedObject.transform.position;
+        // offset to grab position
+        var grabPosition = handWrap.gameObject.GetChildWithName("HandGrabPosition");
+        handWrap.transform.position -= grabPosition.transform.position - handWrap.transform.position;
         var grabbable = selectedObject.GetComponent<GrabbableObject>();
         if (grabbable == null) grabbable = selectedObject.GetComponentInParent<GrabbableObject>();
         if (grabbable != null) interaction.GrabGrabbable(grabbable);
