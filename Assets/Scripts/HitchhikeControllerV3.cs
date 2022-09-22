@@ -34,7 +34,7 @@ public class HitchhikeControllerV3 : MonoBehaviour
   // private List<float> raycastDistanceAcceptThresholds;
   private int activeHandIndex = 0; // 0: original, 1~: copied
   // private List<int> handSwitchProgress;
-  private int handSwitchProgressThreshold = 150;
+  private int handSwitchProgressThreshold = 100;
   public bool scaleHandWithArea = false;
 
   // Start is called before the first frame update
