@@ -8,6 +8,7 @@ using RootScript;
 using Manus;
 using Manus.Interaction;
 using ViveSR.anipal.Eye;
+using System;
 
 public enum HandTrackingMode
 {
@@ -36,6 +37,14 @@ public class HitchhikeControllerV3 : MonoBehaviour
   // private List<int> handSwitchProgress;
   private int handSwitchProgressThreshold = 100;
   public bool scaleHandWithArea = false;
+  public Action<HandWrap> onGrab;
+  public Action<HandWrap> onRelease;
+  public bool isGrabbing;
+  public HandWrap activeHandWrap {
+    get {
+      return activeHandIndex == 0 ? originalHandWrap : copiedHandWraps[activeHandIndex - 1];
+    }
+  }
 
   // Start is called before the first frame update
   void Start()
@@ -250,6 +259,22 @@ public class HitchhikeControllerV3 : MonoBehaviour
         copiedHandWraps[activeHandIndex - 1].transform.rotation = resMat.rotation;
       }
     }
+
+    // invoke actions
+    var activeHandWrap = activeHandIndex == 0 ? originalHandWrap : copiedHandWraps[activeHandIndex - 1];
+    var newGrabbing = activeHandWrap.GetManusHandGrabInteraction().grabbedObject != null;
+    if (isGrabbing != newGrabbing)
+    {
+      if (newGrabbing)
+      {
+        if (onGrab != null) onGrab.Invoke(activeHandWrap);
+      }
+      else
+      {
+        if (onRelease != null) onRelease.Invoke(activeHandWrap);
+      }
+    }
+    isGrabbing = newGrabbing;
   }
 
   private void SwitchWrap(HandWrap beforeWrap, HandWrap afterWrap, GameObject beforeArea)

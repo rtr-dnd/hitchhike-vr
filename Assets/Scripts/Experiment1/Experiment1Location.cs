@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using RootScript;
 using Manus.Interaction;
+using System.Text;
+using System.IO;
 
 public class Experiment1Location : MonoBehaviour
 {
@@ -20,15 +22,30 @@ public class Experiment1Location : MonoBehaviour
   [SerializeField] GameObject grabObject;
   [SerializeField] GameObject targetObject;
   [SerializeField] PushButton resetButton;
+  [SerializeField] Material inactiveTableMaterial;
+  [SerializeField] Material activeTableMaterial;
   int currentObjectIndex = 0;
   int currentTargetIndex = 0;
   GameObject currentGrabObjectInstance;
   GameObject currentTargetObjectInstance;
   float previousTime;
+  bool finished;
   Vector3 currentTargetLocation = Vector3.zero; // x, y, rotation; all -1 to 1
   List<GameObject> envs = new List<GameObject>();
   [SerializeField] ExperimentMode mode;
   HitchhikeControllerV3 hitchhike;
+  ScaledHOMERController homer;
+  private StringBuilder sb;
+  enum Status
+  { // 0: until initial reset button, 1: reset button -> grab object, 2: grab object -> place object, 3: place object -> reset button
+    beforeInitialReset,
+    reaching,
+    placing,
+    completed
+  }
+  Status status;
+  long startTimeStamp;
+
 
   public void ScaleAround(GameObject target, Vector3 pivot, Vector3 newScale)
   {
@@ -43,6 +60,7 @@ public class Experiment1Location : MonoBehaviour
 
   private void Awake()
   {
+    status = Status.beforeInitialReset;
     if (mode == ExperimentMode.hitchhike)
     {
       GameObject.Find("HitchhikeController").SetActive(true);
@@ -50,6 +68,8 @@ public class Experiment1Location : MonoBehaviour
       GameObject.Find("ScaledHOMERController").SetActive(false);
       GameObject.Find("ManusHandWrapHOMER").SetActive(false);
       hitchhike = GameObject.Find("HitchhikeController").GetComponent<HitchhikeControllerV3>();
+      hitchhike.onRelease += OnRelease;
+      hitchhike.onGrab += OnGrab;
     }
     else if (mode == ExperimentMode.homer)
     {
@@ -57,6 +77,9 @@ public class Experiment1Location : MonoBehaviour
       GameObject.Find("ManusHandWrapHitchhike").SetActive(false);
       GameObject.Find("ScaledHOMERController").SetActive(true);
       GameObject.Find("ManusHandWrapHOMER").SetActive(true);
+      homer = GameObject.Find("ScaledHOMERController").GetComponent<ScaledHOMERController>();
+      homer.onRelease += OnRelease;
+      homer.onGrab += OnGrab;
     }
 
     env.transform.position = new Vector3(0, env.transform.position.y, 0.1f);
@@ -93,7 +116,7 @@ public class Experiment1Location : MonoBehaviour
       {
         case 0:
           // tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
-          tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
+          tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance);
 
           // if (hitchhike.scaleHandWithArea)
           // {
@@ -106,7 +129,7 @@ public class Experiment1Location : MonoBehaviour
           break;
         case 1:
           // tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance * 2);
-          tempEnv.transform.position = new Vector3(0, env.transform.position.y + envBetweenDistance, envDistance + envBetweenDistance);
+          tempEnv.transform.position = new Vector3(0, env.transform.position.y + envBetweenDistance, envDistance);
 
           // if (mode == ExperimentMode.Scale || mode == ExperimentMode.ScaleOnlyArea)
           // {
@@ -119,7 +142,7 @@ public class Experiment1Location : MonoBehaviour
           break;
         case 2:
           // tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance * 3);
-          tempEnv.transform.position = new Vector3(0, env.transform.position.y - envBetweenDistance, envDistance + envBetweenDistance);
+          tempEnv.transform.position = new Vector3(0, env.transform.position.y - envBetweenDistance, envDistance);
           // if (mode == ExperimentMode.Scale || mode == ExperimentMode.ScaleOnlyArea)
           // {
           //   var tempArea = tempEnv.GetChildWithName("HandArea");
@@ -159,7 +182,7 @@ public class Experiment1Location : MonoBehaviour
       }
       envs.Add(tempEnv);
 
-      if (mode == ExperimentMode.hitchhike && tempEnv.GetChildWithName("HandArea") != null) hitchhike.copiedHandAreas.Add(tempEnv.GetChildWithName("HandArea"));
+      if (mode == ExperimentMode.hitchhike && tempEnv.GetChildWithName("HandArea") != null && i != 0) hitchhike.copiedHandAreas.Add(tempEnv.GetChildWithName("HandArea"));
     }
 
     env.GetChildWithName("HandArea").transform.position = realHandArea.transform.position;
@@ -180,6 +203,13 @@ public class Experiment1Location : MonoBehaviour
 
   void StartCondition()
   {
+    foreach (var env in envs)
+    {
+      env.GetChildWithName("Table").GetComponent<MeshRenderer>().material = inactiveTableMaterial;
+    }
+    envs[currentObjectIndex].GetChildWithName("Table").GetComponent<MeshRenderer>().material = activeTableMaterial;
+    envs[currentTargetIndex].GetChildWithName("Table").GetComponent<MeshRenderer>().material = activeTableMaterial;
+
     if (currentGrabObjectInstance != null) Destroy(currentGrabObjectInstance);
     currentGrabObjectInstance = GameObject.Instantiate(grabObject);
     currentGrabObjectInstance.SetActive(true);
@@ -197,27 +227,28 @@ public class Experiment1Location : MonoBehaviour
     if (currentTargetObjectInstance == null) return;
     foreach (var item in currentTargetObjectInstance.GetComponentsInChildren<DetectPosition>())
     {
-      Debug.Log(item.GetOK());
       if (!item.GetOK()) isOK = false;
     }
 
     if (isOK)
     {
       // all collider is ok -> next condition
-      Debug.Log(Time.time - previousTime);
+      // Debug.Log(Time.time - previousTime);
       InitializeCondition();
       StartCondition();
     }
     else
     {
-      Debug.Log("not ok");
+      Debug.Log("reset");
       StartCondition();
     }
+    status = Status.reaching;
   }
 
   void InitializeCondition()
   {
     previousTime = Time.time;
+    finished = false;
     currentObjectIndex = Random.Range(0, envs.Count);
     currentTargetIndex = Random.Range(0, envs.Count);
     currentTargetLocation = new Vector3(
@@ -251,5 +282,73 @@ public class Experiment1Location : MonoBehaviour
       desk.position.y + desk.lossyScale.y / 2 + 0.1f,
       desk.position.z
     );
+  }
+
+  private void Start()
+  {
+    System.DateTime centuryBegin = new System.DateTime(2001, 1, 1);
+    startTimeStamp = System.DateTime.Now.Ticks - centuryBegin.Ticks;
+    sb = new StringBuilder("time, ");
+  }
+
+  private void Update()
+  {
+    sb.Append("\n")
+    .Append(Time.fixedTimeAsDouble).Append("\n")
+    .Append(logOf(mode == ExperimentMode.hitchhike ? hitchhike.activeHandWrap.gameObject : homer.handWrap.gameObject)).Append("\n");
+
+    if (currentTargetObjectInstance == null) return;
+    if (finished) return;
+    bool isGrabbing = mode == ExperimentMode.hitchhike ? hitchhike.isGrabbing : homer.isGrabbing;
+    if (isGrabbing) return;
+
+    var isOK = true;
+    foreach (var item in currentTargetObjectInstance.GetComponentsInChildren<DetectPosition>())
+    {
+      if (!item.GetOK()) isOK = false;
+    }
+
+    if (isOK)
+    {
+      Debug.Log(Time.time - previousTime);
+      envs[currentTargetIndex].GetChildWithName("Table").GetComponent<MeshRenderer>().material.color = Color.blue;
+      finished = true;
+      status = Status.completed;
+    }
+  }
+
+  string logOf(GameObject obj)
+  {
+    return (
+        obj.transform.position.x + ", "
+        + obj.transform.position.y + ", "
+        + obj.transform.position.z + ", "
+        + obj.transform.eulerAngles.x + ", "
+        + obj.transform.eulerAngles.y + ", "
+        + obj.transform.eulerAngles.z
+        );
+  }
+
+  private void OnDestroy()
+  {
+    var folder = Application.persistentDataPath;
+
+    var filePath = Path.Combine(folder, $"test_{startTimeStamp}.csv");
+    using (var writer = new StreamWriter(filePath, false))
+    {
+      writer.Write(sb.ToString());
+      Debug.Log("written results");
+    }
+  }
+
+  void OnRelease(HandWrap wrap)
+  {
+    // Debug.Log("on release");
+  }
+
+  void OnGrab(HandWrap wrap)
+  {
+    if (status != Status.reaching && status != Status.beforeInitialReset) return;
+    if (wrap.GetManusHandGrabInteraction().grabbedObject.gameObject == currentGrabObjectInstance) status = Status.placing;
   }
 }

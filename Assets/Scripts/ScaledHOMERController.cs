@@ -4,6 +4,7 @@ using UnityEngine;
 using Manus.Hand;
 using Manus.Interaction;
 using RootScript;
+using System;
 
 public class ScaledHOMERController : MonoBehaviour
 {
@@ -19,7 +20,9 @@ public class ScaledHOMERController : MonoBehaviour
   public Mode mode;
   LineRenderer lineRenderer;
   [SerializeField] Manus.Hand.Gesture.GestureBase grabGesture;
-  bool isGrabbing;
+  public bool isGrabbing;
+  public Action<HandWrap> onGrab;
+  public Action<HandWrap> onRelease;
   GameObject hoveredObject;
   GameObject selectedObject;
 
@@ -199,6 +202,8 @@ public class ScaledHOMERController : MonoBehaviour
         if (grabbable == null) grabbable = selectedObject.GetComponentInParent<GrabbableObject>();
         if (grabbable != null) interaction.GrabGrabbable(grabbable);
         hoveredObject = null;
+        isGrabbing = true;
+        if (onGrab != null) onGrab.Invoke(handWrap.GetComponent<HandWrap>());
       }
     }
     else
@@ -210,6 +215,8 @@ public class ScaledHOMERController : MonoBehaviour
         // handToSelectedOffset = Vector3.zero;
         interaction.Release();
         lineRenderer.enabled = true;
+        isGrabbing = false;
+        if (onRelease != null) onRelease.Invoke(handWrap.GetComponent<HandWrap>());
       }
 
       handWrap.transform.position = tracker.transform.position;
