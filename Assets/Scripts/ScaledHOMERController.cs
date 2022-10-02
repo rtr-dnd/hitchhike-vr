@@ -13,7 +13,7 @@ public class ScaledHOMERController : MonoBehaviour
     HOMER,
     ScaledHOMER
   }
-  public GameObject handWrap;
+  public HandWrap handWrap;
   public GameObject headOrigin;
   public GameObject tracker;
   public GameObject rayDirection;
@@ -58,7 +58,7 @@ public class ScaledHOMERController : MonoBehaviour
   void Start()
   {
     lineRenderer = handWrap.GetComponent<LineRenderer>();
-    interaction = GetHandGrabInteractionFromWrap(handWrap);
+    interaction = handWrap.GetManusHandGrabInteraction();
     tmp = new GameObject("tmp");
     tmp2 = new GameObject("tmp2");
     tmp3 = new GameObject("tmp3");
@@ -66,7 +66,7 @@ public class ScaledHOMERController : MonoBehaviour
 
   void Update()
   {
-    var currentIsGrabbing = grabGesture.Evaluate(GetHandFromWrap(handWrap));
+    var currentIsGrabbing = grabGesture.Evaluate(handWrap.GetManusHand());
     if (currentIsGrabbing && (hoveredObject != null || selectedObject != null))
     {
       if (hoveredObject != null) // object color change etc.
@@ -280,15 +280,5 @@ public class ScaledHOMERController : MonoBehaviour
   void OnSelectEnd(GameObject obj)
   {
     obj.GetComponent<MeshRenderer>().material.color = Color.white;
-  }
-
-
-  private Hand GetHandFromWrap(GameObject wrap)
-  {
-    return wrap.GetChildWithName("ManusHand_R").GetComponent<Hand>();
-  }
-  private HandGrabInteraction GetHandGrabInteractionFromWrap(GameObject wrap)
-  {
-    return wrap.GetChildWithName("ManusHand_R").GetChildWithName("Interaction").GetComponent<HandGrabInteraction>();
   }
 }

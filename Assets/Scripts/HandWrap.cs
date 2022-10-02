@@ -10,6 +10,7 @@ public class HandWrap : MonoBehaviour
   public float raycastDistanceAcceptThreshold;
   private int handSwitchProgress;
   private bool isEnabled;
+  private bool isHidden = false;
   public Material enabledMaterial;
   public Material disabledMaterial;
   public float colliderScale = 1;
@@ -33,6 +34,17 @@ public class HandWrap : MonoBehaviour
       gameObject.GetChildWithName("LowPolyHands").SetActive(enabled);
       gameObject.GetChildWithName("HandGizmo").SetActive(!enabled);
     }
+  }
+
+  public bool GetIsHidden() { return isHidden; }
+  public void SetIsHidden(bool hidden)
+  {
+    if (device == HandTrackingMode.Manus)
+    {
+      GetManusRenderer().enabled = !hidden;
+      GetHitchhikeCollider().enabled = !hidden;
+    }
+    // todo: leap stuff
   }
   public int GetProgress() { return handSwitchProgress; }
   public void SetProgress(int progress, int switchThreshold)
@@ -109,5 +121,15 @@ public class HandWrap : MonoBehaviour
   {
     if (device != HandTrackingMode.Manus) return null;
     return gameObject.GetChildWithName("ManusHand_R").GetChildWithName("SK_Hand").GetComponent<HandAnimator>();
+  }
+  public Hand GetManusHand()
+  {
+    if (device != HandTrackingMode.Manus) return null;
+    return gameObject.GetChildWithName("ManusHand_R").GetComponent<Hand>();
+  }
+
+  private CapsuleCollider GetHitchhikeCollider()
+  {
+    return gameObject.GetChildWithName("Capsule").GetComponent<CapsuleCollider>();
   }
 }

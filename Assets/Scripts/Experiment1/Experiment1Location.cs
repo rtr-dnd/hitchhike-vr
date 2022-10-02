@@ -4,6 +4,7 @@ using RootScript;
 using Manus.Interaction;
 using System.Text;
 using System.IO;
+using UnityEngine.InputSystem;
 
 public class Experiment1Location : MonoBehaviour
 {
@@ -16,7 +17,10 @@ public class Experiment1Location : MonoBehaviour
 
   [SerializeField] GameObject env;
   [SerializeField] GameObject origin;
-  [SerializeField] Transform realHandArea;
+  [SerializeField] Transform realHandArea; // real hand area must be in root
+  [SerializeField] float realHandMinimumDistance = 0.2f;
+  [SerializeField] float realHandMaximumDistance = 0.6f;
+  [SerializeField] Transform tracker;
   [SerializeField] float envDistance = 0.4f;
   [SerializeField] float envBetweenDistance = 1.0f;
   [SerializeField] GameObject grabObject;
@@ -24,13 +28,16 @@ public class Experiment1Location : MonoBehaviour
   [SerializeField] PushButton resetButton;
   [SerializeField] Material inactiveTableMaterial;
   [SerializeField] Material activeTableMaterial;
+  [SerializeField] GameObject messagePanel;
   int currentObjectIndex = 0;
   int currentTargetIndex = 0;
   GameObject currentGrabObjectInstance;
   GameObject currentTargetObjectInstance;
+  PushButton currentResetButtonInstance;
+  bool[,] ConditionStatus = new bool[9, 9]; // [object, target]
   float previousTime;
   bool finished;
-  Vector3 currentTargetLocation = Vector3.zero; // x, y, rotation; all -1 to 1
+  Vector3 currentTargetLocation = Vector3.zero; // r, phi, rotation; all 0 to 1
   List<GameObject> envs = new List<GameObject>();
   [SerializeField] ExperimentMode mode;
   HitchhikeControllerV3 hitchhike;
@@ -45,6 +52,7 @@ public class Experiment1Location : MonoBehaviour
   }
   Status status;
   long startTimeStamp;
+  private bool frozen;
 
 
   public void ScaleAround(GameObject target, Vector3 pivot, Vector3 newScale)
@@ -70,6 +78,8 @@ public class Experiment1Location : MonoBehaviour
       hitchhike = GameObject.Find("HitchhikeController").GetComponent<HitchhikeControllerV3>();
       hitchhike.onRelease += OnRelease;
       hitchhike.onGrab += OnGrab;
+      hitchhike.hideOriginal = true;
+      SetFrozen(true);
     }
     else if (mode == ExperimentMode.homer)
     {
@@ -82,93 +92,24 @@ public class Experiment1Location : MonoBehaviour
       homer.onGrab += OnGrab;
     }
 
-    env.transform.position = new Vector3(0, env.transform.position.y, 0.1f);
-    for (int i = 0; i < 27; i++)
+    env.transform.position = new Vector3(0, env.transform.position.y, envDistance);
+    for (int i = 0; i < 9; i++)
     {
       var tempEnv = GameObject.Instantiate(env, origin.transform.position, env.transform.rotation);
-      // switch (i)
-      // { // tetrahedron like
-      //   case 0:
-      //     tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
-      //     break;
-      //   case 1:
-      //     tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
-      //     tempEnv.transform.RotateAround(new Vector3(0, env.transform.position.y, envDistance), Vector3.up, -45);
-      //     tempEnv.transform.rotation = env.transform.rotation;
-      //     break;
-      //   case 2:
-      //     tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
-      //     tempEnv.transform.RotateAround(new Vector3(0, env.transform.position.y, envDistance), Vector3.up, 45);
-      //     tempEnv.transform.rotation = env.transform.rotation;
-      //     break;
-      //   case 3:
-      //     tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
-      //     tempEnv.transform.RotateAround(new Vector3(0, env.transform.position.y, envDistance), Vector3.right, 45);
-      //     tempEnv.transform.rotation = env.transform.rotation;
-      //     break;
-      //   case 4:
-      //     tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
-      //     tempEnv.transform.RotateAround(new Vector3(0, env.transform.position.y, envDistance), Vector3.right, -45);
-      //     tempEnv.transform.rotation = env.transform.rotation;
-      //     break;
-      // }
-      switch ((i / 3) % 3)
-      {
-        case 0:
-          // tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance);
-          tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance);
+      tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance);
 
-          // if (hitchhike.scaleHandWithArea)
-          // {
-          //   var tempArea = tempEnv.GetChildWithName("HandArea");
-          //   ScaleAround(tempArea,
-          //     new Vector3(tempArea.transform.position.x, tempArea.transform.position.y - tempArea.transform.lossyScale.y / 2, tempArea.transform.position.z),
-          //     tempArea.transform.localScale * 1.2f
-          //   );
-          // }
-          break;
-        case 1:
-          // tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance * 2);
-          tempEnv.transform.position = new Vector3(0, env.transform.position.y + envBetweenDistance, envDistance);
-
-          // if (mode == ExperimentMode.Scale || mode == ExperimentMode.ScaleOnlyArea)
-          // {
-          //   var tempArea = tempEnv.GetChildWithName("HandArea");
-          //   ScaleAround(tempArea,
-          //     new Vector3(tempArea.transform.position.x, tempArea.transform.position.y - tempArea.transform.lossyScale.y / 2, tempArea.transform.position.z),
-          //     tempArea.transform.localScale * 2f
-          //   );
-          // }
-          break;
-        case 2:
-          // tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance + envBetweenDistance * 3);
-          tempEnv.transform.position = new Vector3(0, env.transform.position.y - envBetweenDistance, envDistance);
-          // if (mode == ExperimentMode.Scale || mode == ExperimentMode.ScaleOnlyArea)
-          // {
-          //   var tempArea = tempEnv.GetChildWithName("HandArea");
-          //   ScaleAround(tempArea,
-          //     new Vector3(tempArea.transform.position.x, tempArea.transform.position.y - tempArea.transform.lossyScale.y / 2, tempArea.transform.position.z),
-          //     tempArea.transform.localScale * 4f
-          //   );
-          // }
-          break;
-        default:
-          break;
-      }
       switch (i % 3)
       {
         case 1:
-          // tempEnv.transform.RotateAround(origin.transform.position, Vector3.up, 60);
           tempEnv.transform.position += new Vector3(envBetweenDistance, 0, 0);
           break;
         case 2:
-          // tempEnv.transform.RotateAround(origin.transform.position, Vector3.up, -60);
           tempEnv.transform.position -= new Vector3(envBetweenDistance, 0, 0);
           break;
         default:
           break;
       }
-      switch (i / 9)
+      switch (i / 3)
       {
         case 0:
           tempEnv.transform.position += new Vector3(0, 0, 0);
@@ -180,9 +121,10 @@ public class Experiment1Location : MonoBehaviour
           tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance * 2);
           break;
       }
-      envs.Add(tempEnv);
 
-      if (mode == ExperimentMode.hitchhike && tempEnv.GetChildWithName("HandArea") != null && i != 0) hitchhike.copiedHandAreas.Add(tempEnv.GetChildWithName("HandArea"));
+      tempEnv.transform.LookAt(new Vector3(0, env.transform.position.y, 0));
+      envs.Add(tempEnv);
+      if (mode == ExperimentMode.hitchhike && tempEnv.GetChildWithName("HandArea") != null) hitchhike.copiedHandAreas.Add(tempEnv.GetChildWithName("HandArea"));
     }
 
     env.GetChildWithName("HandArea").transform.position = realHandArea.transform.position;
@@ -195,10 +137,26 @@ public class Experiment1Location : MonoBehaviour
 
     grabObject.SetActive(false);
     targetObject.SetActive(false);
-    resetButton.onPressed += OnReset;
 
+    InstantiateResetButton();
     InitializeCondition();
     StartCondition();
+  }
+
+  void InstantiateResetButton()
+  {
+    if (currentResetButtonInstance) Destroy(currentResetButtonInstance.gameObject);
+    currentResetButtonInstance = GameObject.Instantiate(resetButton.gameObject, resetButton.gameObject.transform.position, resetButton.gameObject.transform.rotation).GetComponent<PushButton>();
+    currentResetButtonInstance.onPressed += OnReset;
+    var nearestTable = envs[0].GetChildWithName("Table");
+    currentResetButtonInstance.transform.position = new Vector3(
+      nearestTable.transform.position.x - nearestTable.transform.lossyScale.x / 2,
+      nearestTable.transform.position.y,
+      nearestTable.transform.position.z - nearestTable.transform.lossyScale.z / 2
+    );
+
+    resetButton.gameObject.SetActive(false);
+    currentResetButtonInstance.gameObject.SetActive(true);
   }
 
   void StartCondition()
@@ -210,7 +168,14 @@ public class Experiment1Location : MonoBehaviour
     envs[currentObjectIndex].GetChildWithName("Table").GetComponent<MeshRenderer>().material = activeTableMaterial;
     envs[currentTargetIndex].GetChildWithName("Table").GetComponent<MeshRenderer>().material = activeTableMaterial;
 
-    if (currentGrabObjectInstance != null) Destroy(currentGrabObjectInstance);
+    if (currentGrabObjectInstance != null)
+    {
+      HandWrap wrap = null;
+      if (mode == ExperimentMode.homer) wrap = homer.handWrap;
+      if (mode == ExperimentMode.hitchhike) wrap = hitchhike.activeHandWrap;
+      wrap.GetManusHandGrabInteraction().Release();
+      Destroy(currentGrabObjectInstance);
+    }
     currentGrabObjectInstance = GameObject.Instantiate(grabObject);
     currentGrabObjectInstance.SetActive(true);
     PlaceObject(envs[currentObjectIndex]);
@@ -222,6 +187,12 @@ public class Experiment1Location : MonoBehaviour
   }
 
   void OnReset(PushButton p)
+  {
+    Debug.Log("reset button pressed");
+    OnReset();
+  }
+
+  void OnReset()
   {
     var isOK = true;
     if (currentTargetObjectInstance == null) return;
@@ -249,12 +220,38 @@ public class Experiment1Location : MonoBehaviour
   {
     previousTime = Time.time;
     finished = false;
-    currentObjectIndex = Random.Range(0, envs.Count);
-    currentTargetIndex = Random.Range(0, envs.Count);
+
+    var trialNum = 1;
+    foreach (var i in ConditionStatus)
+    {
+      if (i) trialNum++;
+    }
+    if (trialNum >= ConditionStatus.GetLength(0) * ConditionStatus.GetLength(1))
+    {
+      Debug.Log("Finished all condition");
+      messagePanel.SetActive(true);
+      return;
+    }
+
+    var flag = true;
+    while (flag)
+    {
+      currentObjectIndex = Random.Range(0, envs.Count);
+      currentTargetIndex = Random.Range(0, envs.Count);
+      if (!ConditionStatus[currentObjectIndex, currentTargetIndex])
+      {
+        flag = false; // found uncompleted condition
+        ConditionStatus[currentObjectIndex, currentTargetIndex] = true;
+      }
+    }
+
+
+    Debug.Log("Trial " + trialNum + ": object " + currentObjectIndex + ", target " + currentTargetIndex);
+
     currentTargetLocation = new Vector3(
-      Random.Range(-1f, 1f),
-      Random.Range(-1f, 1f),
-      Random.Range(-1f, 1f)
+      Random.Range(0f, 1f),
+      Random.Range(0f, 1f),
+      Random.Range(0f, 1f)
     );
   }
 
@@ -267,11 +264,12 @@ public class Experiment1Location : MonoBehaviour
       desk.position.z
     );
     currentTargetObjectInstance.transform.position += new Vector3(
-      currentTargetLocation.x * desk.lossyScale.x / 2 * 0.8f, // prevents sticking out
       0,
-      currentTargetLocation.y * desk.lossyScale.z / 2 * 0.8f
+      0,
+      currentTargetLocation.x * desk.lossyScale.z / 2 * 0.8f // prevents sticking out
     );
-    currentTargetObjectInstance.transform.Rotate(Vector3.forward, currentTargetLocation.z * 180);
+    currentTargetObjectInstance.transform.RotateAround(desk.transform.position, Vector3.up, currentTargetLocation.y * 360);
+    currentTargetObjectInstance.transform.Rotate(Vector3.forward, currentTargetLocation.z * 360);
   }
 
   void PlaceObject(GameObject env)
@@ -293,6 +291,8 @@ public class Experiment1Location : MonoBehaviour
 
   private void Update()
   {
+    HandleKeyboardEvent();
+
     sb.Append("\n")
     .Append(Time.fixedTimeAsDouble).Append("\n")
     .Append(logOf(mode == ExperimentMode.hitchhike ? hitchhike.activeHandWrap.gameObject : homer.handWrap.gameObject)).Append("\n");
@@ -308,13 +308,91 @@ public class Experiment1Location : MonoBehaviour
       if (!item.GetOK()) isOK = false;
     }
 
-    if (isOK)
+    if (!isOK) return;
+    envs[currentTargetIndex].GetChildWithName("Table").GetComponent<MeshRenderer>().material.color = Color.blue;
+    status = Status.completed;
+
+    if (finished) return;
+    Debug.Log(Time.time - previousTime);
+    finished = true;
+  }
+
+  void HandleKeyboardEvent()
+  {
+    var keyboard = Keyboard.current;
+
+    // f for freeze
+    if (keyboard.fKey.wasPressedThisFrame) SetFrozen(!frozen);
+
+    // r for reset
+    if (keyboard.rKey.wasPressedThisFrame)
     {
-      Debug.Log(Time.time - previousTime);
-      envs[currentTargetIndex].GetChildWithName("Table").GetComponent<MeshRenderer>().material.color = Color.blue;
-      finished = true;
-      status = Status.completed;
+      InstantiateResetButton();
+      OnReset();
     }
+
+    // if (keyboard.gKey.wasPressedThisFrame) giveUp(); // todo
+
+    // d for set hand distance
+    if (keyboard.dKey.wasPressedThisFrame && mode == ExperimentMode.hitchhike)
+    {
+      if (keyboard.shiftKey.isPressed)
+      {
+        SetMaximumHandDistance(); // large R for maximum hand distance
+      }
+      else
+      {
+        SetMinimumHandDistance(); // small r for minimum hand distance
+      }
+    }
+  }
+
+  void SetFrozen(bool a_frozen)
+  {
+    frozen = a_frozen;
+    messagePanel.SetActive(a_frozen);
+    Debug.Log("frozen: " + a_frozen);
+    if (mode == ExperimentMode.hitchhike) SetHitchhikeFrozen(a_frozen);
+  }
+
+  void SetHitchhikeFrozen(bool a_frozen)
+  {
+    if (hitchhike == null) return;
+    hitchhike.frozen = a_frozen;
+  }
+
+  void SetMinimumHandDistance()
+  {
+    realHandMinimumDistance = Mathf.Abs(tracker.position.z);
+    Debug.Log("Set minimum hand distance: " + realHandMinimumDistance);
+    SetRealHandArea();
+  }
+  void SetMaximumHandDistance()
+  {
+    realHandMaximumDistance = Mathf.Abs(tracker.position.z);
+    Debug.Log("Set maximum hand distance: " + realHandMaximumDistance);
+    SetRealHandArea();
+  }
+
+  void SetRealHandArea()
+  {
+    realHandArea.transform.position = new Vector3(
+      realHandArea.transform.position.x,
+      realHandArea.transform.position.y,
+      realHandMinimumDistance + (realHandMaximumDistance - realHandMinimumDistance) / 2
+    );
+    realHandArea.transform.localScale = new Vector3( // realhandarea must be in root
+      realHandMaximumDistance - realHandMinimumDistance,
+      realHandArea.transform.localScale.y,
+      realHandMaximumDistance - realHandMinimumDistance
+    );
+
+    env.GetChildWithName("HandArea").transform.position = realHandArea.transform.position;
+    env.GetChildWithName("HandArea").transform.localScale = new Vector3(
+      realHandArea.transform.lossyScale.x / env.transform.lossyScale.x,
+      realHandArea.transform.lossyScale.y / env.transform.lossyScale.y,
+      realHandArea.transform.lossyScale.z / env.transform.lossyScale.z
+    );
   }
 
   string logOf(GameObject obj)

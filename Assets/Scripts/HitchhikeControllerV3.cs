@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using Manus.Hand;
 using RootScript;
 using Manus;
@@ -24,6 +25,9 @@ public class HitchhikeControllerV3 : MonoBehaviour
   public GameObject originalHandArea;
   private List<HandWrap> copiedHandWraps;
   public List<GameObject> copiedHandAreas;
+  public bool frozen = false;
+  public bool hideOriginal = false;
+  public int defaultCopiedWrap = 0;
   public GameObject headOrigin;
   public GameObject tracker;
   public Material enabledMaterial;
@@ -40,8 +44,10 @@ public class HitchhikeControllerV3 : MonoBehaviour
   public Action<HandWrap> onGrab;
   public Action<HandWrap> onRelease;
   public bool isGrabbing;
-  public HandWrap activeHandWrap {
-    get {
+  public HandWrap activeHandWrap
+  {
+    get
+    {
       return activeHandIndex == 0 ? originalHandWrap : copiedHandWraps[activeHandIndex - 1];
     }
   }
@@ -83,6 +89,15 @@ public class HitchhikeControllerV3 : MonoBehaviour
     {
       item.SetEnabled(false);
       item.SetProgress(0, handSwitchProgressThreshold);
+    }
+
+    // if original is hidden
+    if (hideOriginal)
+    {
+      originalHandWrap.SetIsHidden(true);
+      originalHandWrap.SetEnabled(false);
+      activeHandIndex = defaultCopiedWrap + 1;
+      copiedHandWraps[defaultCopiedWrap].SetEnabled(true);
     }
   }
 
@@ -144,76 +159,80 @@ public class HitchhikeControllerV3 : MonoBehaviour
       return;
     }
 
-    int layerMask = 1 << LayerMask.NameToLayer("Hitchhike");
-    var gazeRay = GetGazeRay();
-    var focusDistance = GetFocusDistance(layerMask) * 1.1f; // magic number
-    if (focusDepth != null) focusDepth.transform.position = headOrigin.transform.position + gazeRay.direction * focusDistance;
-
-    RaycastHit closestHit = new RaycastHit();
-    float closestDistance = float.PositiveInfinity;
-    foreach (var hit in Physics.RaycastAll(gazeRay, Mathf.Min(maxRaycastDistance, focusDistance), layerMask))
+    // hand position & switching update
+    if (!frozen)
     {
-      var wrap = GetHandWrapFromHit(hit);
-      var i = GetHandWrapIndex(wrap);
+      int layerMask = 1 << LayerMask.NameToLayer("Hitchhike");
+      var gazeRay = GetGazeRay();
+      var focusDistance = GetFocusDistance(layerMask) * 1.1f; // magic number
+      if (focusDepth != null) focusDepth.transform.position = headOrigin.transform.position + gazeRay.direction * focusDistance;
 
-      // finding a hit that's closest to focus point
-      var colliderDistance = Vector3.Distance(hit.collider.gameObject.transform.position, headOrigin.transform.position);
-      // var colliderDistance = hit.distance;
-      if (Mathf.Abs(colliderDistance - focusDistance) > wrap.raycastDistanceAcceptThreshold) continue;
-      if (Mathf.Abs(colliderDistance - focusDistance) < Mathf.Abs(closestDistance - focusDistance))
+      RaycastHit closestHit = new RaycastHit();
+      float closestDistance = float.PositiveInfinity;
+      foreach (var hit in Physics.RaycastAll(gazeRay, Mathf.Min(maxRaycastDistance, focusDistance), layerMask))
       {
-        closestHit = hit;
-        closestDistance = colliderDistance;
-      }
-    }
+        var wrap = GetHandWrapFromHit(hit);
+        var i = GetHandWrapIndex(wrap);
 
-    var currentGazeIndex = -1;
-    HandWrap currentGazeWrap = null;
-    if (closestDistance < float.PositiveInfinity)
-    {
-      currentGazeWrap = GetHandWrapFromHit(closestHit);
-      currentGazeIndex = GetHandWrapIndex(currentGazeWrap);
-    }
-
-    // update hand status
-    for (var i = 0; i < 1 + copiedHandWraps.Count; i++)
-    {
-      if (i == currentGazeIndex && currentGazeIndex != activeHandIndex)
-      {
-        currentGazeWrap.SetProgress(currentGazeWrap.GetProgress() + 3, handSwitchProgressThreshold);
-      }
-      else
-      {
-        var thisWrap = i == 0 ? originalHandWrap : copiedHandWraps[i - 1];
-        if (thisWrap.GetProgress() > 0) thisWrap.SetProgress(thisWrap.GetProgress() - 1, handSwitchProgressThreshold);
-      }
-    }
-    // Debug.Log(string.Join(", ", handSwitchProgress.Select(i => i.ToString())));
-
-    // switch hand operation
-    for (var i = 0; i < 1 + copiedHandWraps.Count; i++)
-    {
-      var thisWrap = i == 0 ? originalHandWrap : copiedHandWraps[i - 1];
-      if (thisWrap.GetProgress() < handSwitchProgressThreshold) continue;
-      if (i == activeHandIndex) continue;
-
-      thisWrap.SetProgress(0, handSwitchProgressThreshold);
-      if (i == 0)
-      {
-        SwitchWrap(copiedHandWraps[activeHandIndex - 1], originalHandWrap, copiedHandAreas[activeHandIndex - 1]);
-      }
-      else
-      {
-        if (activeHandIndex == 0)
+        // finding a hit that's closest to focus point
+        var colliderDistance = Vector3.Distance(hit.collider.gameObject.transform.position, headOrigin.transform.position);
+        // var colliderDistance = hit.distance;
+        if (Mathf.Abs(colliderDistance - focusDistance) > wrap.raycastDistanceAcceptThreshold) continue;
+        if (Mathf.Abs(colliderDistance - focusDistance) < Mathf.Abs(closestDistance - focusDistance))
         {
-          SwitchWrap(originalHandWrap, copiedHandWraps[i - 1], originalHandArea);
+          closestHit = hit;
+          closestDistance = colliderDistance;
+        }
+      }
+
+      var currentGazeIndex = -1;
+      HandWrap currentGazeWrap = null;
+      if (closestDistance < float.PositiveInfinity)
+      {
+        currentGazeWrap = GetHandWrapFromHit(closestHit);
+        currentGazeIndex = GetHandWrapIndex(currentGazeWrap);
+      }
+
+      // update hand status
+      for (var i = 0; i < 1 + copiedHandWraps.Count; i++)
+      {
+        if (i == currentGazeIndex && currentGazeIndex != activeHandIndex)
+        {
+          currentGazeWrap.SetProgress(currentGazeWrap.GetProgress() + 3, handSwitchProgressThreshold);
         }
         else
         {
-          SwitchWrap(copiedHandWraps[activeHandIndex - 1], copiedHandWraps[i - 1], copiedHandAreas[activeHandIndex - 1]);
+          var thisWrap = i == 0 ? originalHandWrap : copiedHandWraps[i - 1];
+          if (thisWrap.GetProgress() > 0) thisWrap.SetProgress(thisWrap.GetProgress() - 1, handSwitchProgressThreshold);
         }
       }
-      activeHandIndex = i;
+      // Debug.Log(string.Join(", ", handSwitchProgress.Select(i => i.ToString())));
+
+      // switch hand operation
+      for (var i = 0; i < 1 + copiedHandWraps.Count; i++)
+      {
+        var thisWrap = i == 0 ? originalHandWrap : copiedHandWraps[i - 1];
+        if (thisWrap.GetProgress() < handSwitchProgressThreshold) continue;
+        if (i == activeHandIndex) continue;
+
+        thisWrap.SetProgress(0, handSwitchProgressThreshold);
+        if (i == 0)
+        {
+          SwitchWrap(copiedHandWraps[activeHandIndex - 1], originalHandWrap, copiedHandAreas[activeHandIndex - 1]);
+        }
+        else
+        {
+          if (activeHandIndex == 0)
+          {
+            SwitchWrap(originalHandWrap, copiedHandWraps[i - 1], originalHandArea);
+          }
+          else
+          {
+            SwitchWrap(copiedHandWraps[activeHandIndex - 1], copiedHandWraps[i - 1], copiedHandAreas[activeHandIndex - 1]);
+          }
+        }
+        activeHandIndex = i;
+      }
     }
 
     // update hand pos
