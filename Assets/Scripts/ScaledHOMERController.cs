@@ -57,7 +57,7 @@ public class ScaledHOMERController : MonoBehaviour
 
   void Start()
   {
-    lineRenderer = handWrap.GetComponent<LineRenderer>();
+    lineRenderer = handWrap.gameObject.GetComponent<LineRenderer>();
     interaction = handWrap.GetManusHandGrabInteraction();
     tmp = new GameObject("tmp");
     tmp2 = new GameObject("tmp2");
@@ -126,10 +126,10 @@ public class ScaledHOMERController : MonoBehaviour
         tmp3.transform.SetParent(tmp2.transform);
         tmp.transform.LookAt(tracker.transform.position);
         var new_V_offset = tmp3.transform.position - tmp2.transform.position;
-        handWrap.transform.position = torsoCenter
+        handWrap.gameObject.transform.position = torsoCenter
         + (tracker.transform.position - torsoCenter).normalized * D_currhand / D_hand * D_object
         + new_V_offset * Mathf.Min(D_currhand / D_hand, 1);
-        handWrap.transform.rotation = tracker.transform.rotation;
+        handWrap.gameObject.transform.rotation = tracker.transform.rotation;
       }
       else if (mode == Mode.ScaledHOMER)
       {
@@ -160,8 +160,8 @@ public class ScaledHOMERController : MonoBehaviour
         var SP_hand = tracker.transform.position;
         if (hoveredObject != null) // initial operation
         {
-          handWrap.transform.position = selectedObject.transform.position;
-          handWrap.transform.rotation = tracker.transform.rotation;
+          handWrap.gameObject.transform.position = selectedObject.transform.position;
+          handWrap.gameObject.transform.rotation = tracker.transform.rotation;
         }
         else
         {
@@ -179,31 +179,31 @@ public class ScaledHOMERController : MonoBehaviour
           tmp3.transform.SetParent(tmp2.transform);
           tmp.transform.LookAt(SP_hand);
           var new_V_offset = tmp3.transform.position - tmp2.transform.position;
-          handWrap.transform.position = torsoCenter
+          handWrap.gameObject.transform.position = torsoCenter
           + (SP_hand - torsoCenter).normalized * D_currhand / D_hand * D_object
           // + new_V_offset * Mathf.Min(D_currhand / D_hand, 1);
           + new_V_offset * (D_currhand / D_hand);
-          handWrap.transform.rotation = tracker.transform.rotation;
+          handWrap.gameObject.transform.rotation = tracker.transform.rotation;
         }
 
         // scaled homer update val
         lastHandPos = tracker.transform.position;
-        lastVirtualHandPos = handWrap.transform.position;
+        lastVirtualHandPos = handWrap.gameObject.transform.position;
         lastSPHand = SP_hand;
       }
 
       if (hoveredObject != null) // grab action
       {
-        handWrap.transform.position = selectedObject.transform.position;
+        handWrap.gameObject.transform.position = selectedObject.transform.position;
         // offset to grab position
         var grabPosition = handWrap.gameObject.GetChildWithName("HandGrabPosition");
-        handWrap.transform.position -= grabPosition.transform.position - handWrap.transform.position;
+        handWrap.gameObject.transform.position -= grabPosition.transform.position - handWrap.gameObject.transform.position;
         var grabbable = selectedObject.GetComponent<GrabbableObject>();
         if (grabbable == null) grabbable = selectedObject.GetComponentInParent<GrabbableObject>();
         if (grabbable != null) interaction.GrabGrabbable(grabbable);
         hoveredObject = null;
         isGrabbing = true;
-        if (onGrab != null) onGrab.Invoke(handWrap.GetComponent<HandWrap>());
+        if (onGrab != null) onGrab.Invoke(handWrap);
       }
     }
     else
@@ -216,11 +216,11 @@ public class ScaledHOMERController : MonoBehaviour
         interaction.Release();
         lineRenderer.enabled = true;
         isGrabbing = false;
-        if (onRelease != null) onRelease.Invoke(handWrap.GetComponent<HandWrap>());
+        if (onRelease != null) onRelease.Invoke(handWrap);
       }
 
-      handWrap.transform.position = tracker.transform.position;
-      handWrap.transform.rotation = tracker.transform.rotation;
+      handWrap.gameObject.transform.position = tracker.transform.position;
+      handWrap.gameObject.transform.rotation = tracker.transform.rotation;
       if (!filteredForward.HasValue)
       {
         filteredForward = rayDirection.transform.forward;

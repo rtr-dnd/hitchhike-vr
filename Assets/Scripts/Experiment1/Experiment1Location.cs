@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using RootScript;
@@ -6,7 +7,8 @@ using System.Text;
 using System.IO;
 using UnityEngine.InputSystem;
 
-public class Experiment1Location : MonoBehaviour
+
+public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
 {
   public enum ExperimentMode
   {
@@ -31,10 +33,10 @@ public class Experiment1Location : MonoBehaviour
   [SerializeField] GameObject messagePanel;
   int currentObjectIndex = 0;
   int currentTargetIndex = 0;
-  GameObject currentGrabObjectInstance;
+  public GameObject currentGrabObjectInstance;
   GameObject currentTargetObjectInstance;
   PushButton currentResetButtonInstance;
-  bool[,] ConditionStatus = new bool[9, 9]; // [object, target]
+  bool[,] ConditionStatus = new bool[6, 6]; // [object, target]
   float previousTime;
   bool finished;
   Vector3 currentTargetLocation = Vector3.zero; // r, phi, rotation; all 0 to 1
@@ -66,8 +68,10 @@ public class Experiment1Location : MonoBehaviour
     target.transform.position = resultPos;
   }
 
-  private void Awake()
+  protected override void Awake()
   {
+    base.Awake();
+
     status = Status.beforeInitialReset;
     if (mode == ExperimentMode.hitchhike)
     {
@@ -93,7 +97,7 @@ public class Experiment1Location : MonoBehaviour
     }
 
     env.transform.position = new Vector3(0, env.transform.position.y, envDistance);
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < 6; i++)
     {
       var tempEnv = GameObject.Instantiate(env, origin.transform.position, env.transform.rotation);
       tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance);
@@ -139,8 +143,6 @@ public class Experiment1Location : MonoBehaviour
     targetObject.SetActive(false);
 
     InstantiateResetButton();
-    InitializeCondition();
-    StartCondition();
   }
 
   void InstantiateResetButton()
@@ -194,6 +196,14 @@ public class Experiment1Location : MonoBehaviour
 
   void OnReset()
   {
+    if (status == Status.beforeInitialReset)
+    {
+      status = Status.reaching;
+      InitializeCondition();
+      StartCondition();
+      return;
+    }
+
     var isOK = true;
     if (currentTargetObjectInstance == null) return;
     foreach (var item in currentTargetObjectInstance.GetComponentsInChildren<DetectPosition>())
@@ -286,7 +296,7 @@ public class Experiment1Location : MonoBehaviour
   {
     System.DateTime centuryBegin = new System.DateTime(2001, 1, 1);
     startTimeStamp = System.DateTime.Now.Ticks - centuryBegin.Ticks;
-    sb = new StringBuilder("time, ");
+    sb = new StringBuilder("time, handPositionX, handPositionY, ");
   }
 
   private void Update()
@@ -363,26 +373,36 @@ public class Experiment1Location : MonoBehaviour
 
   void SetMinimumHandDistance()
   {
-    realHandMinimumDistance = Mathf.Abs(tracker.position.z);
+    realHandMinimumDistance = tracker.position.z;
     Debug.Log("Set minimum hand distance: " + realHandMinimumDistance);
     SetRealHandArea();
   }
   void SetMaximumHandDistance()
   {
-    realHandMaximumDistance = Mathf.Abs(tracker.position.z);
+    realHandMaximumDistance = tracker.position.z;
     Debug.Log("Set maximum hand distance: " + realHandMaximumDistance);
     SetRealHandArea();
   }
 
   void SetRealHandArea()
   {
+    // realHandArea.transform.position = new Vector3(
+    //   realHandArea.transform.position.x,
+    //   realHandArea.transform.position.y,
+    //   realHandMinimumDistance + (realHandMaximumDistance - realHandMinimumDistance) / 2
+    // );
+    // realHandArea.transform.localScale = new Vector3( // realhandarea must be in root
+    //   realHandMaximumDistance - realHandMinimumDistance,
+    //   realHandArea.transform.localScale.y,
+    //   realHandMaximumDistance - realHandMinimumDistance
+    // );
     realHandArea.transform.position = new Vector3(
-      realHandArea.transform.position.x,
-      realHandArea.transform.position.y,
-      realHandMinimumDistance + (realHandMaximumDistance - realHandMinimumDistance) / 2
-    );
+          realHandArea.transform.position.x,
+          realHandArea.transform.position.y,
+          realHandMinimumDistance + (realHandMaximumDistance - realHandMinimumDistance) / 2
+        );
     realHandArea.transform.localScale = new Vector3( // realhandarea must be in root
-      realHandMaximumDistance - realHandMinimumDistance,
+      realHandArea.transform.localScale.x,
       realHandArea.transform.localScale.y,
       realHandMaximumDistance - realHandMinimumDistance
     );

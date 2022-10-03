@@ -39,7 +39,7 @@ public class HitchhikeControllerV3 : MonoBehaviour
   // private List<float> raycastDistanceAcceptThresholds;
   private int activeHandIndex = 0; // 0: original, 1~: copied
   // private List<int> handSwitchProgress;
-  private int handSwitchProgressThreshold = 100;
+  private int handSwitchProgressThreshold = 50;
   public bool scaleHandWithArea = false;
   public Action<HandWrap> onGrab;
   public Action<HandWrap> onRelease;
