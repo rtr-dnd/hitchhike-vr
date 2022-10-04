@@ -127,6 +127,11 @@ public class HandWrap : MonoBehaviour
     if (device != HandTrackingMode.Manus) return null;
     return gameObject.GetChildWithName("ManusHand_R").GetComponent<Hand>();
   }
+  public Transform GetHandCenter()
+  {
+    if (device != HandTrackingMode.Manus) return null;
+    return gameObject.GetChildWithName("HandCenter").transform;
+  }
 
   private CapsuleCollider GetHitchhikeCollider()
   {

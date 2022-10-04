@@ -6,7 +6,7 @@ using Manus.Interaction;
 using System.Text;
 using System.IO;
 using UnityEngine.InputSystem;
-
+using ViveSR.anipal.Eye;
 
 public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
 {
@@ -15,7 +15,13 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     hitchhike,
     homer
   }
-
+  public enum Status
+  { // 0: until initial reset button, 1: reset button -> grab object, 2: grab object -> place object, 3: place object -> reset button
+    beforeInitialReset,
+    reaching,
+    placing,
+    completed
+  }
 
   [SerializeField] GameObject env;
   [SerializeField] GameObject origin;
@@ -23,6 +29,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
   [SerializeField] float realHandMinimumDistance = 0.2f;
   [SerializeField] float realHandMaximumDistance = 0.6f;
   [SerializeField] Transform tracker;
+  [SerializeField] Transform head;
   [SerializeField] float envDistance = 0.4f;
   [SerializeField] float envBetweenDistance = 1.0f;
   [SerializeField] GameObject grabObject;
@@ -31,12 +38,13 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
   [SerializeField] Material inactiveTableMaterial;
   [SerializeField] Material activeTableMaterial;
   [SerializeField] GameObject messagePanel;
+  [SerializeField] Manus.Hand.Gesture.GestureBase grabGesture;
   int currentObjectIndex = 0;
   int currentTargetIndex = 0;
   public GameObject currentGrabObjectInstance;
   GameObject currentTargetObjectInstance;
   PushButton currentResetButtonInstance;
-  bool[,] ConditionStatus = new bool[6, 6]; // [object, target]
+  bool[,] ConditionStatus = new bool[7, 7]; // [object, target]
   float previousTime;
   bool finished;
   Vector3 currentTargetLocation = Vector3.zero; // r, phi, rotation; all 0 to 1
@@ -44,14 +52,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
   [SerializeField] ExperimentMode mode;
   HitchhikeControllerV3 hitchhike;
   ScaledHOMERController homer;
-  private StringBuilder sb;
-  enum Status
-  { // 0: until initial reset button, 1: reset button -> grab object, 2: grab object -> place object, 3: place object -> reset button
-    beforeInitialReset,
-    reaching,
-    placing,
-    completed
-  }
+
   Status status;
   long startTimeStamp;
   private bool frozen;
@@ -97,32 +98,37 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     }
 
     env.transform.position = new Vector3(0, env.transform.position.y, envDistance);
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < 7; i++)
     {
       var tempEnv = GameObject.Instantiate(env, origin.transform.position, env.transform.rotation);
       tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance);
-
-      switch (i % 3)
+      if (i == 0)
       {
-        case 1:
-          tempEnv.transform.position += new Vector3(envBetweenDistance, 0, 0);
+        envs.Add(tempEnv);
+        if (mode == ExperimentMode.hitchhike && tempEnv.GetChildWithName("HandArea") != null) hitchhike.copiedHandAreas.Add(tempEnv.GetChildWithName("HandArea"));
+        continue;
+      }
+
+      switch ((i - 1) / 3)
+      {
+        case 0:
+          tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance);
           break;
-        case 2:
-          tempEnv.transform.position -= new Vector3(envBetweenDistance, 0, 0);
+        case 1:
+          tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance * 2);
           break;
         default:
           break;
       }
-      switch (i / 3)
+      switch (i % 3)
       {
         case 0:
-          tempEnv.transform.position += new Vector3(0, 0, 0);
           break;
         case 1:
-          tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance);
+          tempEnv.transform.RotateAround(origin.transform.position, Vector3.up, 45);
           break;
         case 2:
-          tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance * 2);
+          tempEnv.transform.RotateAround(origin.transform.position, Vector3.up, -45);
           break;
       }
 
@@ -296,16 +302,38 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
   {
     System.DateTime centuryBegin = new System.DateTime(2001, 1, 1);
     startTimeStamp = System.DateTime.Now.Ticks - centuryBegin.Ticks;
-    sb = new StringBuilder("time, handPositionX, handPositionY, ");
   }
 
   private void Update()
   {
     HandleKeyboardEvent();
 
-    sb.Append("\n")
-    .Append(Time.fixedTimeAsDouble).Append("\n")
-    .Append(logOf(mode == ExperimentMode.hitchhike ? hitchhike.activeHandWrap.gameObject : homer.handWrap.gameObject)).Append("\n");
+    if (SRanipal_Eye_Framework.Status != SRanipal_Eye_Framework.FrameworkStatus.WORKING)
+    {
+      Debug.Log("Eye tracking malfunctioning");
+      return;
+    }
+
+    LoggerPerFrame.Instance.DataList.Add(new LoggerPerFrame.Data(
+      Time.fixedTimeAsDouble,
+      mode,
+      tracker.transform,
+      mode == ExperimentMode.hitchhike ? hitchhike.activeHandWrap.GetHandCenter() : homer.handWrap.GetHandCenter(),
+      realHandArea.transform,
+      currentGrabObjectInstance ? currentGrabObjectInstance.transform : null,
+      currentTargetObjectInstance ? currentTargetObjectInstance.transform : null,
+      head.transform,
+      GetGazeDirection(),
+      head.transform.position + GetGazeDirection() * GetFocusDistance(),
+      currentObjectIndex,
+      currentTargetIndex,
+      currentResetButtonInstance.pressed,
+      // todo: 当たり判定
+      grabGesture.Evaluate(mode == ExperimentMode.hitchhike ? hitchhike.activeHandWrap.GetManusHand() : homer.handWrap.GetManusHand()),
+      mode == ExperimentMode.hitchhike ? hitchhike.activeHandWrap.GetManusHandGrabInteraction().grabbedObject != null : homer.handWrap.GetManusHandGrabInteraction().grabbedObject != null,
+      frozen,
+      status
+    ));
 
     if (currentTargetObjectInstance == null) return;
     if (finished) return;
@@ -386,16 +414,6 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
 
   void SetRealHandArea()
   {
-    // realHandArea.transform.position = new Vector3(
-    //   realHandArea.transform.position.x,
-    //   realHandArea.transform.position.y,
-    //   realHandMinimumDistance + (realHandMaximumDistance - realHandMinimumDistance) / 2
-    // );
-    // realHandArea.transform.localScale = new Vector3( // realhandarea must be in root
-    //   realHandMaximumDistance - realHandMinimumDistance,
-    //   realHandArea.transform.localScale.y,
-    //   realHandMaximumDistance - realHandMinimumDistance
-    // );
     realHandArea.transform.position = new Vector3(
           realHandArea.transform.position.x,
           realHandArea.transform.position.y,
@@ -427,17 +445,12 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
         );
   }
 
-  private void OnDestroy()
-  {
-    var folder = Application.persistentDataPath;
-
-    var filePath = Path.Combine(folder, $"test_{startTimeStamp}.csv");
-    using (var writer = new StreamWriter(filePath, false))
-    {
-      writer.Write(sb.ToString());
-      Debug.Log("written results");
-    }
-  }
+  // private void OnDestroy()
+  // {
+  //   var folder = Application.persistentDataPath;
+  //   Debug.Log(folder);
+  //   LoggerPerFrame.Instance.Export(folder);
+  // }
 
   void OnRelease(HandWrap wrap)
   {
@@ -448,5 +461,27 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
   {
     if (status != Status.reaching && status != Status.beforeInitialReset) return;
     if (wrap.GetManusHandGrabInteraction().grabbedObject.gameObject == currentGrabObjectInstance) status = Status.placing;
+  }
+
+  private Vector3 GetGazeDirection()
+  {
+    var eyeData = GetCombinedSingleEyeData();
+    var gazeDirection = eyeData.gaze_direction_normalized;
+    gazeDirection.x *= -1; // right hand coor to left hand coor
+
+    var direction = head.transform.rotation * gazeDirection;
+    return direction.normalized;
+  }
+
+  private SingleEyeData GetCombinedSingleEyeData()
+  {
+    var eyeData = SRanipal_Eye_v2.GetVerboseData(out var verboseData);
+    return verboseData.combined.eye_data;
+  }
+
+  private float GetFocusDistance()
+  {
+    var wasSuccess = SRanipal_Eye_v2.Focus(GazeIndex.COMBINE, out var combineRay, out var combineFocus, 0, float.MaxValue);
+    return combineFocus.distance;
   }
 }

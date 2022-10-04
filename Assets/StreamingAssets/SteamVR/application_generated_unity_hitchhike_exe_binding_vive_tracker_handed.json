@@ -87,6 +87,38 @@
             {
                "output" : "/actions/default/in/pose",
                "path" : "/user/hand/right/pose/raw"
+            },
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/left/pose/pistol"
+            },
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/right/pose/pistol"
+            },
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/left/pose/front_rolled"
+            },
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/right/pose/front_rolled"
+            },
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/left/pose/front"
+            },
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/right/pose/front"
+            },
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/left/pose/back"
+            },
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/right/pose/back"
             }
          ],
          "skeleton" : [
@@ -136,28 +168,6 @@
                   "force_input" : "value"
                },
                "path" : "/user/hand/left/input/trigger"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/default/in/interactui"
-                  }
-               },
-               "mode" : "button",
-               "path" : "/user/hand/right/input/trigger"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/default/in/grabpinch"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {
-                  "click_activate_threshold" : "0.75",
-                  "click_deactivate_threshold" : "0.7"
-               },
-               "path" : "/user/hand/right/input/trigger"
             },
             {
                "inputs" : {
@@ -213,26 +223,39 @@
             },
             {
                "inputs" : {
-                  "click" : {
-                     "output" : "/actions/default/in/grabgrip"
-                  }
-               },
-               "mode" : "button",
-               "parameters" : {
-                  "click_activate_threshold" : "0.05",
-                  "click_deactivate_threshold" : "0",
-                  "force_input" : "force"
-               },
-               "path" : "/user/hand/right/input/grip"
-            },
-            {
-               "inputs" : {
                   "pull" : {
                      "output" : "/actions/default/in/squeeze"
                   }
                },
                "mode" : "trigger",
                "path" : "/user/hand/left/input/trigger"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/grabgrip"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/right/input/grip"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/interactui"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/right/input/trigger"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/grabpinch"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/right/input/trigger"
             },
             {
                "inputs" : {
@@ -289,7 +312,7 @@
    "category" : "steamvr_input",
    "controller_type" : "vive_tracker_handed",
    "description" : "",
-   "name" : "vive_controller",
+   "name" : "Saved hitchhike [Testing] configuration for Vive Tracker in Hand",
    "options" : {},
    "simulated_actions" : []
 }
