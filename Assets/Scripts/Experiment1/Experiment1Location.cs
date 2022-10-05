@@ -210,14 +210,6 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
       return;
     }
 
-    // var isOK = true;
-    // if (currentTargetObjectInstance == null) return;
-    // foreach (var item in currentTargetObjectInstance.GetComponentsInChildren<DetectPosition>())
-    // {
-    //   if (!item.GetOK()) isOK = false;
-    // }
-
-    // if (isOK)
     if (status == Status.completed)
     {
       InitializeCondition();
