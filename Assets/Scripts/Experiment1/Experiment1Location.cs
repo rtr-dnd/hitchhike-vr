@@ -210,17 +210,16 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
       return;
     }
 
-    var isOK = true;
-    if (currentTargetObjectInstance == null) return;
-    foreach (var item in currentTargetObjectInstance.GetComponentsInChildren<DetectPosition>())
-    {
-      if (!item.GetOK()) isOK = false;
-    }
+    // var isOK = true;
+    // if (currentTargetObjectInstance == null) return;
+    // foreach (var item in currentTargetObjectInstance.GetComponentsInChildren<DetectPosition>())
+    // {
+    //   if (!item.GetOK()) isOK = false;
+    // }
 
-    if (isOK)
+    // if (isOK)
+    if (status == Status.completed)
     {
-      // all collider is ok -> next condition
-      // Debug.Log(Time.time - previousTime);
       InitializeCondition();
       StartCondition();
     }
@@ -237,12 +236,12 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     previousTime = Time.time;
     finished = false;
 
-    var trialNum = 1;
+    var trialNum = 0;
     foreach (var i in ConditionStatus)
     {
       if (i) trialNum++;
     }
-    if (trialNum >= ConditionStatus.GetLength(0) * ConditionStatus.GetLength(1))
+    if (trialNum >= ConditionStatus.GetLength(0) * (ConditionStatus.GetLength(1) - 1)) // excluding the conditions when start and goal is same
     {
       Debug.Log("Finished all condition");
       messagePanel.SetActive(true);
@@ -254,6 +253,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     {
       currentObjectIndex = Random.Range(0, envs.Count);
       currentTargetIndex = Random.Range(0, envs.Count);
+      if (currentObjectIndex == currentTargetIndex) continue; // skip if start and goal is same
       if (!ConditionStatus[currentObjectIndex, currentTargetIndex])
       {
         flag = false; // found uncompleted condition
@@ -262,7 +262,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     }
 
 
-    Debug.Log("Trial " + trialNum + ": object " + currentObjectIndex + ", target " + currentTargetIndex);
+    Debug.Log("Trial " + (trialNum + 1) + ": object " + currentObjectIndex + ", target " + currentTargetIndex);
 
     currentTargetLocation = new Vector3(
       Random.Range(0f, 1f),
