@@ -39,7 +39,7 @@ public class LoggerPerFrame : SingletonMonoBehaviour<LoggerPerFrame> // シン�
     public int currentObjectIndex;
     public int currentTargetIndex;
     public bool resetButtonIsPressed;
-    // todo: 当たり判定
+    public bool isCorrectlyPlaced;
     public bool isGrabbingGesture;
     public bool isGrabbingObject;
     public bool isFrozen;
@@ -60,7 +60,7 @@ public class LoggerPerFrame : SingletonMonoBehaviour<LoggerPerFrame> // シン�
       int a_currentObjectIndex,
       int a_currentTargetIndex,
       bool a_resetButtonIsPressed,
-      // todo: 当たり判定
+      bool a_isCorrectlyPlaced,
       bool a_isGrabbingGesture,
       bool a_isGrabbingObject,
       bool a_isFrozen,
@@ -79,7 +79,7 @@ public class LoggerPerFrame : SingletonMonoBehaviour<LoggerPerFrame> // シン�
       currentObjectIndex = a_currentObjectIndex;
       currentTargetIndex = a_currentTargetIndex;
       resetButtonIsPressed = a_resetButtonIsPressed;
-      // todo: 当たり判定
+      isCorrectlyPlaced = a_isCorrectlyPlaced;
       isGrabbingGesture = a_isGrabbingGesture;
       isGrabbingObject = a_isGrabbingObject;
       isFrozen = a_isFrozen;
@@ -92,25 +92,24 @@ public class LoggerPerFrame : SingletonMonoBehaviour<LoggerPerFrame> // シン�
       get
       {
         return $@"
-          time,
-          mode,
-          {hTransform("tracker", true, true, false)}
-          {hTransform("activeHand", true, true, false)}
-          {hTransform("realHandArea", true, false, true)}
-          {hTransform("car", true, true, false)}
-          {hTransform("parkingLot", true, true, false)}
-          {hTransform("head", true, true, false)}
-          gazeDirection,
-          gazeHitPoint,
-          currentObjectIndex,
-          currentTargetIndex,
-          resetButtonIsPressed,
-          // todo: 当たり判定
-          isGrabbingGesture,
-          isGrabbingObject,
-          isFrozen,
-          status,
-        ".Replace(Environment.NewLine, "");
+time,
+mode,
+{hTransform("tracker", true, true, false)}
+{hTransform("activeHand", true, true, false)}
+{hTransform("realHandArea", true, false, true)}
+{hTransform("car", true, true, false)}
+{hTransform("parkingLot", true, true, false)}
+{hTransform("head", true, true, false)}
+gazeDirection,
+gazeHitPoint,
+currentObjectIndex,
+currentTargetIndex,
+resetButtonIsPressed,
+isCorrectlyPlaced,
+isGrabbingGesture,
+isGrabbingObject,
+isFrozen,
+status,".Replace(Environment.NewLine, "");
       }
     }
 
@@ -142,6 +141,7 @@ public class LoggerPerFrame : SingletonMonoBehaviour<LoggerPerFrame> // シン�
 {currentObjectIndex},
 {currentTargetIndex},
 {resetButtonIsPressed},
+{isCorrectlyPlaced},
 {isGrabbingGesture},
 {isGrabbingObject},
 {isFrozen},
@@ -192,6 +192,7 @@ public class LoggerPerFrame : SingletonMonoBehaviour<LoggerPerFrame> // シン�
     {
       file.Write("\n" + data.ToString());
     }
+    file.Close();
   }
 
   private void OnDestroy()
@@ -199,5 +200,6 @@ public class LoggerPerFrame : SingletonMonoBehaviour<LoggerPerFrame> // シン�
     var folder = Application.persistentDataPath;
     Directory.CreateDirectory(folder);
     LoggerPerFrame.Instance.Export(folder);
+    Debug.Log("exported log per frame");
   }
 }

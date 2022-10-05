@@ -26,27 +26,32 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
   [SerializeField] GameObject env;
   [SerializeField] GameObject origin;
   [SerializeField] Transform realHandArea; // real hand area must be in root
-  [SerializeField] float realHandMinimumDistance = 0.2f;
-  [SerializeField] float realHandMaximumDistance = 0.6f;
   [SerializeField] Transform tracker;
   [SerializeField] Transform head;
   [SerializeField] float envDistance = 0.4f;
   [SerializeField] float envBetweenDistance = 1.0f;
   [SerializeField] GameObject grabObject;
   [SerializeField] GameObject targetObject;
+  [SerializeField] float placementDistanceThreshold = 0.05f;
+  [SerializeField] float placementAngleThreshold = 10f;
   [SerializeField] PushButton resetButton;
   [SerializeField] Material inactiveTableMaterial;
   [SerializeField] Material activeTableMaterial;
   [SerializeField] GameObject messagePanel;
   [SerializeField] Manus.Hand.Gesture.GestureBase grabGesture;
+  float realHandMinimumDistance = 0.2f;
+  float realHandMaximumDistance = 0.6f;
   int currentObjectIndex = 0;
   int currentTargetIndex = 0;
   public GameObject currentGrabObjectInstance;
   GameObject currentTargetObjectInstance;
   PushButton currentResetButtonInstance;
   bool[,] ConditionStatus = new bool[7, 7]; // [object, target]
-  float previousTime;
+  float lastResetTime;
+  float lastReachedTime;
+  float lastPlacedTime;
   bool finished;
+  bool isCorrectlyPlaced;
   Vector3 currentTargetLocation = Vector3.zero; // r, phi, rotation; all 0 to 1
   List<GameObject> envs = new List<GameObject>();
   [SerializeField] ExperimentMode mode;
@@ -56,7 +61,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
   Status status;
   long startTimeStamp;
   private bool frozen;
-
+  Color defaultGizmoColor;
 
   public void ScaleAround(GameObject target, Vector3 pivot, Vector3 newScale)
   {
@@ -75,6 +80,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
 
     status = Status.beforeInitialReset;
     SetFrozen(true);
+    defaultGizmoColor = targetObject.GetComponentInChildren<TargetGizmo>().gameObject.GetComponentInChildren<MeshRenderer>().material.color;
     if (mode == ExperimentMode.hitchhike)
     {
       GameObject.Find("HitchhikeController").SetActive(true);
@@ -225,15 +231,10 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
 
   void InitializeCondition()
   {
-    previousTime = Time.time;
+    lastResetTime = Time.time;
     finished = false;
 
-    var trialNum = 0;
-    foreach (var i in ConditionStatus)
-    {
-      if (i) trialNum++;
-    }
-    if (trialNum >= ConditionStatus.GetLength(0) * (ConditionStatus.GetLength(1) - 1)) // excluding the conditions when start and goal is same
+    if (GetTrialNum() >= ConditionStatus.GetLength(0) * (ConditionStatus.GetLength(1) - 1)) // excluding the conditions when start and goal is same
     {
       Debug.Log("Finished all condition");
       messagePanel.SetActive(true);
@@ -254,7 +255,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     }
 
 
-    Debug.Log("Trial " + (trialNum + 1) + ": object " + currentObjectIndex + ", target " + currentTargetIndex);
+    Debug.Log("Trial " + (GetTrialNum() + 1) + ": object " + currentObjectIndex + ", target " + currentTargetIndex);
 
     currentTargetLocation = new Vector3(
       Random.Range(0f, 1f),
@@ -306,6 +307,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
       return;
     }
 
+    // log per frame
     LoggerPerFrame.Instance.DataList.Add(new LoggerPerFrame.Data(
       Time.fixedTimeAsDouble,
       mode,
@@ -320,7 +322,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
       currentObjectIndex,
       currentTargetIndex,
       currentResetButtonInstance.pressed,
-      // todo: 当たり判定
+      isCorrectlyPlaced,
       grabGesture.Evaluate(mode == ExperimentMode.hitchhike ? hitchhike.activeHandWrap.GetManusHand() : homer.handWrap.GetManusHand()),
       mode == ExperimentMode.hitchhike ? hitchhike.activeHandWrap.GetManusHandGrabInteraction().grabbedObject != null : homer.handWrap.GetManusHandGrabInteraction().grabbedObject != null,
       frozen,
@@ -329,22 +331,55 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
 
     if (currentTargetObjectInstance == null) return;
     if (finished) return;
+
+    // placement detection
+    var targetGizmo = currentTargetObjectInstance.GetComponentInChildren<TargetGizmo>();
+    var distance = Vector3.Distance(currentGrabObjectInstance.transform.position, targetGizmo.transform.position);
+    var angle = Vector3.Angle(currentGrabObjectInstance.transform.forward, targetGizmo.transform.forward);
+
+    isCorrectlyPlaced = distance < placementDistanceThreshold && angle < placementAngleThreshold; // todo: angle requirement
+    targetGizmo.GetComponentInChildren<MeshRenderer>().material.color = isCorrectlyPlaced ? Color.blue : defaultGizmoColor;
+
     bool isGrabbing = mode == ExperimentMode.hitchhike ? hitchhike.isGrabbing : homer.isGrabbing;
     if (isGrabbing) return;
 
-    var isOK = true;
-    foreach (var item in currentTargetObjectInstance.GetComponentsInChildren<DetectPosition>())
-    {
-      if (!item.GetOK()) isOK = false;
-    }
+    // var isOK = true;
+    // foreach (var item in currentTargetObjectInstance.GetComponentsInChildren<DetectPosition>())
+    // {
+    //   if (!item.GetOK()) isOK = false;
+    // }
 
-    if (!isOK) return;
+    // if (!isOK) return;
+    if (!isCorrectlyPlaced) return;
     envs[currentTargetIndex].GetChildWithName("Table").GetComponent<MeshRenderer>().material.color = Color.blue;
     status = Status.completed;
 
     if (finished) return;
-    Debug.Log(Time.time - previousTime);
+    lastPlacedTime = Time.time;
     finished = true;
+
+    // log per condition
+    Debug.Log("reaching time: " + (lastReachedTime - lastResetTime) + ", placing time: " + (lastPlacedTime - lastReachedTime));
+    LoggerPerCondition.Instance.DataList.Add(new LoggerPerCondition.Data(
+      Time.fixedTimeAsDouble,
+      mode,
+      GetTrialNum(),
+      lastReachedTime - lastResetTime,
+      lastPlacedTime - lastReachedTime,
+      currentObjectIndex,
+      currentTargetIndex,
+      currentTargetLocation
+    ));
+  }
+
+  int GetTrialNum()
+  {
+    var trialNum = 0;
+    foreach (var i in ConditionStatus)
+    {
+      if (i) trialNum++;
+    }
+    return trialNum;
   }
 
   void HandleKeyboardEvent()
@@ -425,25 +460,6 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     );
   }
 
-  string logOf(GameObject obj)
-  {
-    return (
-        obj.transform.position.x + ", "
-        + obj.transform.position.y + ", "
-        + obj.transform.position.z + ", "
-        + obj.transform.eulerAngles.x + ", "
-        + obj.transform.eulerAngles.y + ", "
-        + obj.transform.eulerAngles.z
-        );
-  }
-
-  // private void OnDestroy()
-  // {
-  //   var folder = Application.persistentDataPath;
-  //   Debug.Log(folder);
-  //   LoggerPerFrame.Instance.Export(folder);
-  // }
-
   void OnRelease(HandWrap wrap)
   {
     // Debug.Log("on release");
@@ -452,7 +468,11 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
   void OnGrab(HandWrap wrap)
   {
     if (status != Status.reaching && status != Status.beforeInitialReset) return;
-    if (wrap.GetManusHandGrabInteraction().grabbedObject.gameObject == currentGrabObjectInstance) status = Status.placing;
+    if (wrap.GetManusHandGrabInteraction().grabbedObject.gameObject == currentGrabObjectInstance)
+    {
+      status = Status.placing;
+      if (lastReachedTime < lastResetTime) lastReachedTime = Time.time; // detect initial reaching only
+    }
   }
 
   private Vector3 GetGazeDirection()
