@@ -223,7 +223,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     }
     else
     {
-      Debug.Log("reset");
+      Debug.Log("respawn");
       StartCondition();
     }
     status = Status.reaching;
@@ -396,7 +396,8 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
       OnReset();
     }
 
-    // if (keyboard.gKey.wasPressedThisFrame) giveUp(); // todo
+    // g for giving up
+    if (keyboard.gKey.wasPressedThisFrame) status = Status.completed;
 
     // d for set hand distance
     if (keyboard.dKey.wasPressedThisFrame && mode == ExperimentMode.hitchhike)
