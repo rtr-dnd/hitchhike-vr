@@ -67,8 +67,9 @@ public class ScaledHOMERController : MonoBehaviour
   void Update()
   {
     var currentIsGrabbing = grabGesture.Evaluate(handWrap.GetManusHand());
-    if (currentIsGrabbing && (hoveredObject != null || selectedObject != null))
+    if (currentIsGrabbing && (hoveredObject != null || selectedObject != null || handWrap.GetManusHandGrabInteraction().grabbedObject != null))
     {
+      lineRenderer.enabled = false;
       if (hoveredObject != null) // object color change etc.
       {
         selectedObject = hoveredObject;
@@ -105,7 +106,6 @@ public class ScaledHOMERController : MonoBehaviour
         }
         OnHoverEnd(selectedObject);
         OnSelect(selectedObject);
-        lineRenderer.enabled = false;
       }
 
       if (mode == Mode.HOMER)
@@ -208,13 +208,13 @@ public class ScaledHOMERController : MonoBehaviour
     }
     else
     {
+      lineRenderer.enabled = true;
       if (selectedObject)
       {
         OnSelectEnd(selectedObject);
         selectedObject = null;
         // handToSelectedOffset = Vector3.zero;
         interaction.Release();
-        lineRenderer.enabled = true;
         isGrabbing = false;
         if (onRelease != null) onRelease.Invoke(handWrap);
       }

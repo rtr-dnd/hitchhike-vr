@@ -75,7 +75,7 @@ public class HitchhikeControllerV3 : MonoBehaviour
       if (scaleHandCollider)
       {
         var distance = Vector3.Distance(originalHandArea.transform.position, item.transform.position);
-        tempHandWrap.colliderScale = distance * 0.1f + 1;
+        tempHandWrap.colliderScale = distance * 0.03f + 1;
         tempHandWrap.raycastDistanceAcceptThreshold = raycastDistanceAcceptThreshold * Mathf.Pow(tempHandWrap.colliderScale, 2);
       }
       else

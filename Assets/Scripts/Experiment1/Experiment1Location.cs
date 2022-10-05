@@ -74,6 +74,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     base.Awake();
 
     status = Status.beforeInitialReset;
+    SetFrozen(true);
     if (mode == ExperimentMode.hitchhike)
     {
       GameObject.Find("HitchhikeController").SetActive(true);
@@ -84,7 +85,6 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
       hitchhike.onRelease += OnRelease;
       hitchhike.onGrab += OnGrab;
       hitchhike.hideOriginal = true;
-      SetFrozen(true);
     }
     else if (mode == ExperimentMode.homer)
     {
