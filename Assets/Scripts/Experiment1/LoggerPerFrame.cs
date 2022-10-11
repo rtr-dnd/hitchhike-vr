@@ -178,11 +178,13 @@ status,".Replace(Environment.NewLine, "");
     }
   }
 
+  private string finalFileName = "";
+
   // CSVファイルを生成してデータを出力する
   public void Export(string folder)
   {
     // FileNameの名前でCSVファイルを生成する
-    var file = new StreamWriter(Path.Combine(folder, FileName), false, Encoding.GetEncoding("UTF-8"));
+    var file = new StreamWriter(Path.Combine(folder, finalFileName), false, Encoding.GetEncoding("UTF-8"));
 
     // 1行目：
     file.Write(Data.Header); // file.writeは適当なcsv書き込み用関数だと思ってください
@@ -193,6 +195,15 @@ status,".Replace(Environment.NewLine, "");
       file.Write("\n" + data.ToString());
     }
     file.Close();
+  }
+
+  protected override void Awake()
+  {
+    base.Awake();
+    finalFileName =
+      (Experiment1Location.Instance.isPractice ? "practice_" : "task_")
+      + (Experiment1Location.Instance.mode == ExperimentMode.hitchhike ? "hitchhike_" : "homer_")
+      + FileName;
   }
 
   private void OnDestroy()

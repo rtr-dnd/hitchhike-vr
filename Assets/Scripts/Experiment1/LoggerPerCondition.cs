@@ -18,6 +18,7 @@ public class LoggerPerCondition : SingletonMonoBehaviour<LoggerPerCondition> // 
     public int currentObjectIndex;
     public int currentTargetIndex;
     public Vector3 currentTargetLocation;
+    public float ipd;
 
     // コンストラクタ
     public Data(
@@ -28,7 +29,8 @@ public class LoggerPerCondition : SingletonMonoBehaviour<LoggerPerCondition> // 
       float a_placingTime,
       int a_currentObjectIndex,
       int a_currentTargetIndex,
-      Vector3 a_currentTargetLocation
+      Vector3 a_currentTargetLocation,
+      float a_ipd
     )
     {
       this.time = a_time;
@@ -39,6 +41,8 @@ public class LoggerPerCondition : SingletonMonoBehaviour<LoggerPerCondition> // 
       this.currentObjectIndex = a_currentObjectIndex;
       this.currentTargetIndex = a_currentTargetIndex;
       this.currentTargetLocation = a_currentTargetLocation;
+      this.ipd = a_ipd;
+      Debug.Log("added condition log");
     }
 
     // CSVの1行目用
@@ -54,7 +58,8 @@ reachingTime,
 placingTime,
 currentObjectIndex,
 currentTargetIndex,
-currentTargetLocation,".Replace(Environment.NewLine, "");
+currentTargetLocation,
+ipd,".Replace(Environment.NewLine, "");
       }
     }
 
@@ -70,7 +75,8 @@ currentTargetLocation,".Replace(Environment.NewLine, "");
 {placingTime},
 {currentObjectIndex},
 {currentTargetIndex},
-{t(currentTargetLocation)},".Replace(Environment.NewLine, "");
+{t(currentTargetLocation)},
+{ipd},".Replace(Environment.NewLine, "");
     }
     public static string t(Vector3 t) // not to separate on csv
     {
@@ -93,11 +99,13 @@ currentTargetLocation,".Replace(Environment.NewLine, "");
     }
   }
 
+  private string finalFileName = "";
+
   // CSVファイルを生成してデータを出力する
   public void Export(string folder)
   {
     // FileNameの名前でCSVファイルを生成する
-    var file = new StreamWriter(Path.Combine(folder, FileName), false, Encoding.GetEncoding("UTF-8"));
+    var file = new StreamWriter(Path.Combine(folder, finalFileName), false, Encoding.GetEncoding("UTF-8"));
 
     // 1行目：
     file.Write(Data.Header); // file.writeは適当なcsv書き込み用関数だと思ってください
@@ -108,6 +116,15 @@ currentTargetLocation,".Replace(Environment.NewLine, "");
       file.Write("\n" + data.ToString());
     }
     file.Close();
+  }
+
+  protected override void Awake()
+  {
+    base.Awake();
+    finalFileName =
+      (Experiment1Location.Instance.isPractice ? "practice_" : "task_")
+      + (Experiment1Location.Instance.mode == ExperimentMode.hitchhike ? "hitchhike_" : "homer_")
+      + FileName;
   }
 
   private void OnDestroy()

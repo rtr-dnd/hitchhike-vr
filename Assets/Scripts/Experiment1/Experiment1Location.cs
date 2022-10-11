@@ -7,6 +7,7 @@ using System.Text;
 using System.IO;
 using UnityEngine.InputSystem;
 using ViveSR.anipal.Eye;
+using Valve.VR;
 
 public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
 {
@@ -23,6 +24,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     completed
   }
 
+  public bool isPractice;
   [SerializeField] GameObject env;
   [SerializeField] GameObject origin;
   [SerializeField] Transform realHandArea; // real hand area must be in root
@@ -46,15 +48,17 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
   public GameObject currentGrabObjectInstance;
   GameObject currentTargetObjectInstance;
   PushButton currentResetButtonInstance;
-  bool[,] ConditionStatus = new bool[7, 7]; // [object, target]
-  float lastResetTime;
+  bool[,] ConditionStatusPractice = new bool[3, 3]; // [object, target]
+  bool[,] ConditionStatusTask = new bool[7, 7]; // [object, target]
+  bool[,] GetConditionStatus() { return isPractice ? ConditionStatusPractice : ConditionStatusTask; }
+  float lastResetTime = 0f;
   float lastReachedTime;
   float lastPlacedTime;
   bool finished;
   bool isCorrectlyPlaced;
   Vector3 currentTargetLocation = Vector3.zero; // r, phi, rotation; all 0 to 1
   List<GameObject> envs = new List<GameObject>();
-  [SerializeField] ExperimentMode mode;
+  public ExperimentMode mode;
   HitchhikeControllerV3 hitchhike;
   ScaledHOMERController homer;
 
@@ -104,43 +108,72 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     }
 
     env.transform.position = new Vector3(0, env.transform.position.y, envDistance);
-    for (int i = 0; i < 7; i++)
+    if (isPractice)
     {
-      var tempEnv = GameObject.Instantiate(env, origin.transform.position, env.transform.rotation);
-      tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance);
-      if (i == 0)
+      for (int i = 0; i < 3; i++)
       {
+        ;
+        var tempEnv = GameObject.Instantiate(env, origin.transform.position, env.transform.rotation);
+        tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance);
+        switch (i)
+        {
+          case 0:
+            break;
+          case 1:
+            tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance);
+            tempEnv.transform.LookAt(new Vector3(0, env.transform.position.y, 0));
+            tempEnv.transform.RotateAround(origin.transform.position, Vector3.up, 45);
+            break;
+          case 2:
+            tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance);
+            tempEnv.transform.LookAt(new Vector3(0, env.transform.position.y, 0));
+            tempEnv.transform.RotateAround(origin.transform.position, Vector3.up, -45);
+            break;
+        }
         envs.Add(tempEnv);
         if (mode == ExperimentMode.hitchhike && tempEnv.GetChildWithName("HandArea") != null) hitchhike.copiedHandAreas.Add(tempEnv.GetChildWithName("HandArea"));
-        continue;
       }
-
-      switch ((i - 1) / 3)
+    }
+    else
+    {
+      for (int i = 0; i < 7; i++)
       {
-        case 0:
-          tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance);
-          break;
-        case 1:
-          tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance * 2);
-          break;
-        default:
-          break;
-      }
-      switch (i % 3)
-      {
-        case 0:
-          break;
-        case 1:
-          tempEnv.transform.RotateAround(origin.transform.position, Vector3.up, 45);
-          break;
-        case 2:
-          tempEnv.transform.RotateAround(origin.transform.position, Vector3.up, -45);
-          break;
-      }
+        var tempEnv = GameObject.Instantiate(env, origin.transform.position, env.transform.rotation);
+        tempEnv.transform.position = new Vector3(0, env.transform.position.y, envDistance);
+        if (i == 0)
+        {
+          envs.Add(tempEnv);
+          if (mode == ExperimentMode.hitchhike && tempEnv.GetChildWithName("HandArea") != null) hitchhike.copiedHandAreas.Add(tempEnv.GetChildWithName("HandArea"));
+          continue;
+        }
 
-      tempEnv.transform.LookAt(new Vector3(0, env.transform.position.y, 0));
-      envs.Add(tempEnv);
-      if (mode == ExperimentMode.hitchhike && tempEnv.GetChildWithName("HandArea") != null) hitchhike.copiedHandAreas.Add(tempEnv.GetChildWithName("HandArea"));
+        switch ((i - 1) / 3)
+        {
+          case 0:
+            tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance);
+            break;
+          case 1:
+            tempEnv.transform.position += new Vector3(0, 0, envBetweenDistance * 2);
+            break;
+          default:
+            break;
+        }
+        switch (i % 3)
+        {
+          case 0:
+            break;
+          case 1:
+            tempEnv.transform.RotateAround(origin.transform.position, Vector3.up, 45);
+            break;
+          case 2:
+            tempEnv.transform.RotateAround(origin.transform.position, Vector3.up, -45);
+            break;
+        }
+
+        tempEnv.transform.LookAt(new Vector3(0, env.transform.position.y, 0));
+        envs.Add(tempEnv);
+        if (mode == ExperimentMode.hitchhike && tempEnv.GetChildWithName("HandArea") != null) hitchhike.copiedHandAreas.Add(tempEnv.GetChildWithName("HandArea"));
+      }
     }
 
     env.GetChildWithName("HandArea").transform.position = realHandArea.transform.position;
@@ -234,7 +267,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     lastResetTime = Time.time;
     finished = false;
 
-    if (GetTrialNum() >= ConditionStatus.GetLength(0) * (ConditionStatus.GetLength(1) - 1)) // excluding the conditions when start and goal is same
+    if (GetTrialNum() >= GetConditionStatus().GetLength(0) * (GetConditionStatus().GetLength(1) - 1)) // excluding the conditions when start and goal is same
     {
       Debug.Log("Finished all condition");
       messagePanel.SetActive(true);
@@ -247,15 +280,14 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
       currentObjectIndex = Random.Range(0, envs.Count);
       currentTargetIndex = Random.Range(0, envs.Count);
       if (currentObjectIndex == currentTargetIndex) continue; // skip if start and goal is same
-      if (!ConditionStatus[currentObjectIndex, currentTargetIndex])
+      if (!GetConditionStatus()[currentObjectIndex, currentTargetIndex])
       {
         flag = false; // found uncompleted condition
-        ConditionStatus[currentObjectIndex, currentTargetIndex] = true;
       }
     }
 
-
     Debug.Log("Trial " + (GetTrialNum() + 1) + ": object " + currentObjectIndex + ", target " + currentTargetIndex);
+    if (!isPractice) GetConditionStatus()[currentObjectIndex, currentTargetIndex] = true; // in practice, no need to set conditionstatus marked
 
     currentTargetLocation = new Vector3(
       Random.Range(0f, 1f),
@@ -307,6 +339,11 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
       return;
     }
 
+    if (Time.time - lastResetTime > 180f)
+    {
+      Debug.Log("passed 3 min");
+    }
+
     // log per frame
     LoggerPerFrame.Instance.DataList.Add(new LoggerPerFrame.Data(
       Time.fixedTimeAsDouble,
@@ -343,13 +380,6 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
     bool isGrabbing = mode == ExperimentMode.hitchhike ? hitchhike.isGrabbing : homer.isGrabbing;
     if (isGrabbing) return;
 
-    // var isOK = true;
-    // foreach (var item in currentTargetObjectInstance.GetComponentsInChildren<DetectPosition>())
-    // {
-    //   if (!item.GetOK()) isOK = false;
-    // }
-
-    // if (!isOK) return;
     if (!isCorrectlyPlaced) return;
     envs[currentTargetIndex].GetChildWithName("Table").GetComponent<MeshRenderer>().material.color = Color.blue;
     status = Status.completed;
@@ -360,6 +390,7 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
 
     // log per condition
     Debug.Log("reaching time: " + (lastReachedTime - lastResetTime) + ", placing time: " + (lastPlacedTime - lastReachedTime));
+    var error = new ETrackedPropertyError();
     LoggerPerCondition.Instance.DataList.Add(new LoggerPerCondition.Data(
       Time.fixedTimeAsDouble,
       mode,
@@ -368,14 +399,15 @@ public class Experiment1Location : SingletonMonoBehaviour<Experiment1Location>
       lastPlacedTime - lastReachedTime,
       currentObjectIndex,
       currentTargetIndex,
-      currentTargetLocation
+      currentTargetLocation,
+      SteamVR.instance.hmd.GetFloatTrackedDeviceProperty(0, ETrackedDeviceProperty.Prop_UserIpdMeters_Float, ref error)
     ));
   }
 
   int GetTrialNum()
   {
     var trialNum = 0;
-    foreach (var i in ConditionStatus)
+    foreach (var i in GetConditionStatus())
     {
       if (i) trialNum++;
     }
